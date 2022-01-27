@@ -80,14 +80,17 @@ impl U256 {
         a
     }
 
+    #[must_use]
     pub fn wrapping_add(self, other: U256) -> U256 {
         self.overflowing_add(other).0
     }
 
+    #[must_use]
     pub fn wrapping_sub(self, other: U256) -> U256 {
         self.overflowing_sub(other).0
     }
 
+    #[must_use]
     pub fn wrapping_mul(self, other: U256) -> U256 {
         self.overflowing_mul(other).0
     }

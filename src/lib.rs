@@ -79,6 +79,26 @@ impl U256 {
         a.reverse();
         a
     }
+
+    pub fn wrapping_add(self, other: U256) -> U256 {
+        self.overflowing_add(other).0
+    }
+
+    pub fn wrapping_sub(self, other: U256) -> U256 {
+        self.overflowing_sub(other).0
+    }
+
+    pub fn wrapping_mul(self, other: U256) -> U256 {
+        self.overflowing_mul(other).0
+    }
+
+    pub fn checked_div_rem(self, other: U256) -> Option<(U256, U256)> {
+        if other.is_zero() {
+            None
+        } else {
+            Some(self.div_mod(other))
+        }
+    }
 }
 
 impl Serialize for U256 {

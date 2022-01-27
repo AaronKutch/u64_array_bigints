@@ -12,7 +12,7 @@ keywords = ["bigint", "no_std"]
 categories = ["data-structures", "no-std"]
 
 [dependencies]
-uint = "0.9.1"
+uint = "0.9"
 serde = { version = "1.0", optional = true }
 
 [features]

@@ -1,0 +1,21 @@
+[package]
+name = "u64_array_bigints"
+version = "0.1.0"
+edition = "2021"
+authors = ["Aaron Kutch <aaronkutch@att.net>"]
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/AaronKutch/u64_array_bigints"
+documentation = "https://docs.rs/u64_array_bigints"
+description = "Simple biginteger library based on u64 arrays"
+keywords = ["bigint", "no_std"]
+categories = ["data-structures", "no-std"]
+
+[dependencies]
+bytemuck = "1.7"
+serde = { version = "1.0", optional = true }
+uint = "0.9"
+
+[features]
+default = ["serde_support"]
+serde_support = ["serde"]

@@ -27,3 +27,24 @@ fn serialization_test() {
         "115792089237316195423570985008687907853269984665640564039457584007913129639935"
     );
 }
+
+#[test]
+fn le_be_test() {
+    assert_eq!(
+        U256::from_dec_or_hex_str(
+            "0x1234ffffffffffffffffffffffffffffffffffffffffffffffffffffffff5678",
+        )
+        .unwrap()
+        .to_u8_array_be(),
+        U256::from_dec_or_hex_str(
+            "0x7856ffffffffffffffffffffffffffffffffffffffffffffffffffffffff3412",
+        )
+        .unwrap()
+        .to_u8_array()
+    );
+    assert_eq!(
+        U256::from_bytes_be(&[0xffu8; 32]).unwrap(),
+        U256::max_value()
+    );
+    assert!(U256::from_bytes_be(&[0u8; 33]).is_none());
+}

@@ -20,7 +20,30 @@ mod clippy_guard {
 
 pub use clippy_guard::U256;
 
+// the unwraps here will not panic if $n is correct
+macro_rules! to_from_array {
+    ($($to_fn:ident $from_fn:ident $uX:ident $n:expr);*;) => {
+        $(
+            pub fn $to_fn(self) -> [$uX; $n] {
+                bytemuck::try_cast(self.0).unwrap()
+            }
+
+            pub fn $from_fn(x: [$uX; $n]) -> Self {
+                Self(bytemuck::try_cast(x).unwrap())
+            }
+        )*
+    };
+}
+
 impl U256 {
+    to_from_array!(
+        to_u8_array from_u8_array u8 32;
+        to_u16_array from_u16_array u16 16;
+        to_u32_array from_u32_array u32 8;
+        to_u64_array from_u64_array u64 4;
+        to_u128_array from_u128_array u128 2;
+    );
+
     /// The `uint` implementation of `FromStr` is unsuitable because it is
     /// hexadecimal only (intentional by their developers because they did not
     /// make the mistake of using decimal in message passing implementations and
@@ -32,6 +55,29 @@ impl U256 {
         } else {
             Ok(U256::from_str_radix(s, 10)?)
         }
+    }
+
+    pub fn as_u8_slice_mut(&mut self) -> &mut [u8; 32] {
+        // this will not panic because `[u8; 32]` is the right size
+        bytemuck::try_cast_mut(&mut self.0).unwrap()
+    }
+
+    /// # Errors
+    ///
+    /// If the number of bytes is greater than the number of bytes in `Self`
+    pub fn from_bytes_be(bytes: &[u8]) -> Option<Self> {
+        let mut this = Self::zero();
+        if bytes.len() > 32 {
+            return None
+        }
+        this.as_u8_slice_mut()[..bytes.len()].copy_from_slice(bytes);
+        Some(this)
+    }
+
+    pub fn to_u8_array_be(self) -> [u8; 32] {
+        let mut a = self.to_u8_array();
+        a.reverse();
+        a
     }
 }
 

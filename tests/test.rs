@@ -22,6 +22,17 @@ fn serialization_test() {
     .unwrap();
     assert_eq!(max, U256::max_value());
 
+    assert_eq!(U256::zero().to_hex_string(), "0x0");
+    assert_eq!(U256::from(0x1234u32).to_hex_string(), "0x1234");
+    assert_eq!(
+        U256::from_dec_or_hex_str(
+            "0x1234ffffffffffffffffffffffffffffffffffffffffffffffffffffffff5678",
+        )
+        .unwrap()
+        .to_hex_string(),
+        "0x1234ffffffffffffffffffffffffffffffffffffffffffffffffffffffff5678"
+    );
+
     assert_eq!(
         max.to_string(),
         "115792089237316195423570985008687907853269984665640564039457584007913129639935"

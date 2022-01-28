@@ -1,7 +1,11 @@
 #![no_std]
 
 extern crate alloc;
-use alloc::string::{String, ToString};
+use alloc::{
+    borrow::ToOwned,
+    format,
+    string::{String, ToString},
+};
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 pub use uint::FromStrRadixErr;
@@ -43,6 +47,25 @@ impl U256 {
         to_u64_array from_u64_array u64 4;
         to_u128_array from_u128_array u128 2;
     );
+
+    pub fn to_hex_string(self) -> String {
+        if self.is_zero() {
+            return "0x0".to_owned()
+        }
+        let mut s = "0x".to_owned();
+        let mut latch = false;
+        for i in (0..self.0.len()).rev() {
+            if self.0[i] != 0 {
+                // delay until we see a nonzero digit, otherwise we will print an extra leading
+                // zero for every digit
+                latch = true;
+            }
+            if latch {
+                s += &format!("{:x}", self.0[i]);
+            }
+        }
+        s
+    }
 
     /// The `uint` implementation of `FromStr` is unsuitable because it is
     /// hexadecimal only (intentional by their developers because they did not

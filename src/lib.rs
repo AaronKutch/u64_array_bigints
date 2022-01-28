@@ -69,10 +69,10 @@ impl U256 {
         if bytes.len() > 32 {
             return None
         }
-        let mut this = Self::zero();
-        this.as_u8_slice_mut()[..bytes.len()].copy_from_slice(bytes);
-        this.as_u8_slice_mut().reverse();
-        Some(this)
+        let mut a = [0u8; 32];
+        a[(32 - bytes.len())..].copy_from_slice(bytes);
+        a.reverse();
+        Some(U256::from_u8_array(a))
     }
 
     pub fn to_u8_array_be(self) -> [u8; 32] {

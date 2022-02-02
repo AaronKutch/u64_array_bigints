@@ -1,19 +1,7 @@
-use alloc::string::String;
-
 use crate::Uint;
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct U256(pub Uint<4>);
-
-impl U256 {
-    pub const fn zero() -> Self {
-        Self(Uint::zero())
-    }
-
-    pub const fn one() -> Self {
-        Self(Uint::one())
-    }
-}
 
 // the unwraps here will not panic if $n is correct
 macro_rules! to_from_array {
@@ -39,26 +27,21 @@ impl U256 {
         to_u128_array from_u128_array u128 2;
     );
 
+    pub const fn zero() -> Self {
+        Self(Uint::zero())
+    }
+
+    pub const fn one() -> Self {
+        Self(Uint::one())
+    }
+
+    pub const fn max_value() -> Self {
+        Self(Uint::max_value())
+    }
+
     pub fn is_zero(self) -> bool {
         self.0.is_zero()
     }
-
-    pub fn to_hex_string(self) -> String {
-        self.0.to_hex_string()
-    }
-
-    /// The `uint` implementation of `FromStr` is unsuitable because it is
-    /// hexadecimal only (intentional by their developers because they did not
-    /// make the mistake of using decimal in message passing implementations and
-    /// do not have wasteful "0x" prefixes), this function will switch between
-    /// hexadecimal and decimal depending on if there is a "0x" prefix.
-    /*pub fn from_dec_or_hex_str(s: &str) -> Result<U256, FromStrRadixErr> {
-        if let Some(val) = s.strip_prefix("0x") {
-            Ok(U256::from_str_radix(val, 16)?)
-        } else {
-            Ok(U256::from_str_radix(s, 10)?)
-        }
-    }*/
 
     pub fn as_u8_slice_mut(&mut self) -> &mut [u8; 32] {
         // this will not panic because `[u8; 32]` is the right size
@@ -138,22 +121,91 @@ impl U256 {
     }
 }
 
-/*impl Serialize for U256 {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_str(&self.to_string())
+/// These are forwarded from `Uint<4>`
+impl U256 {
+    pub const fn bw() -> usize {
+        Uint::<4>::bw()
+    }
+
+    pub const fn lsb(&self) -> bool {
+        self.0.lsb()
+    }
+
+    pub const fn msb(&self) -> bool {
+        self.0.msb()
+    }
+
+    pub const fn lz(&self) -> usize {
+        self.0.lz()
+    }
+
+    pub const fn tz(&self) -> usize {
+        self.0.tz()
+    }
+
+    pub const fn count_ones(&self) -> usize {
+        self.0.count_ones()
+    }
+
+    pub const fn const_eq(&self, rhs: &Self) -> bool {
+        self.0.const_eq(&rhs.0)
+    }
+
+    pub const fn const_lt(&self, rhs: &Self) -> bool {
+        self.0.const_lt(&rhs.0)
+    }
+
+    pub const fn const_le(&self, rhs: &Self) -> bool {
+        self.0.const_le(&rhs.0)
+    }
+
+    pub const fn const_gt(&self, rhs: &Self) -> bool {
+        self.0.const_gt(&rhs.0)
+    }
+
+    pub const fn const_ge(&self, rhs: &Self) -> bool {
+        self.0.const_eq(&rhs.0)
+    }
+
+    pub const fn resize_to_u64(&self) -> u64 {
+        self.0.resize_to_u64()
+    }
+
+    pub const fn from_u64(x: u64) -> Self {
+        Self(Uint::from_u64(x))
+    }
+
+    pub const fn overflowing_short_cin_mul(self, cin: u64, rhs: u64) -> (Self, u64) {
+        let tmp = self.0.overflowing_short_cin_mul(cin, rhs);
+        (Self(tmp.0), tmp.1)
+    }
+
+    pub const fn overflowing_short_mul_add(self, lhs: Self, rhs: u64) -> (Self, bool) {
+        let tmp = self.0.overflowing_short_mul_add(lhs.0, rhs);
+        (Self(tmp.0), tmp.1)
+    }
+
+    pub const fn overflowing_mul_add(self, lhs: Self, rhs: Self) -> (Self, bool) {
+        let tmp = self.0.overflowing_mul_add(lhs.0, rhs.0);
+        (Self(tmp.0), tmp.1)
+    }
+
+    pub const fn checked_short_divide(self, div: u64) -> Option<(Self, u64)> {
+        match self.0.checked_short_divide(div) {
+            Some((x, o)) => Some((Self(x), o)),
+            None => None,
+        }
+    }
+
+    pub const fn panicking_short_divide(self, div: u64) -> (Self, u64) {
+        let tmp = self.0.panicking_short_divide(div);
+        (Self(tmp.0), tmp.1)
+    }
+
+    pub const fn divide(self, div: Self) -> Option<(Self, Self)> {
+        match self.0.divide(div.0) {
+            Some((x, y)) => Some((Self(x), Self(y))),
+            None => None,
+        }
     }
 }
-
-impl<'de> Deserialize<'de> for U256 {
-    fn deserialize<D>(deserializer: D) -> Result<U256, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        // Create U256 given the sliced data, and radix
-        U256::from_dec_or_hex_str(&String::deserialize(deserializer)?)
-            .map_err(serde::de::Error::custom)
-    }
-}*/

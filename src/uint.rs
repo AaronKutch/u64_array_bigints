@@ -1,34 +1,15 @@
-use crate::utils::{dd_division, digits_u, extra_u, widen_add, widen_mul_add, BITS};
+use core::cmp::Ordering;
 
-/// A basic for loop for const contexts
-macro_rules! const_for {
-    ($i:ident in $range:block $b:block) => {
-        let mut $i: usize = $range.start.wrapping_sub(1);
-        loop {
-            // the increment must happen before `$b` so that `continue`s still cause it
-            $i = $i.wrapping_add(1);
-            if $i >= $range.end {
-                break
-            }
-            $b;
-        }
-    };
-    ($i:ident in $range:block.rev() $b:block) => {
-        let mut $i: usize = $range.end;
-        loop {
-            if $i <= $range.start {
-                break
-            }
-            $i = $i.wrapping_sub(1);
-            $b;
-        }
-    };
-}
+use crate::{
+    const_for,
+    utils::{dd_division, digits_u, extra_u, widen_add, widen_mul_add, BITS},
+};
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Ord)]
 pub struct Uint<const LEN: usize>(pub [u64; LEN]);
 
-// N.B. much of this code is taken from the `awint` crate, see it for better docs.
+// N.B. much of this code is taken from the `awint` crate, see it for better
+// docs.
 
 // N.B. inspection with `cargo-asm` shows the compiler is smart enough to remove
 // bounds checks, no unsafe needed
@@ -48,7 +29,7 @@ impl<const LEN: usize> Uint<LEN> {
         Self([0; LEN])
     }
 
-    pub const fn max() -> Self {
+    pub const fn max_value() -> Self {
         assert!(LEN > 0);
         assert!(LEN < (isize::MAX as usize));
         Self([u64::MAX; LEN])
@@ -136,6 +117,18 @@ impl<const LEN: usize> Uint<LEN> {
         } else {
             Some(tmp.0)
         }
+    }
+}
+
+impl<const LEN: usize> PartialOrd for Uint<LEN> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(if self.const_lt(other) {
+            Ordering::Less
+        } else if self == other {
+            Ordering::Equal
+        } else {
+            Ordering::Greater
+        })
     }
 }
 
@@ -274,6 +267,22 @@ impl<const LEN: usize> Uint<LEN> {
         (res, carry)
     }
 
+    /// Returns `self + (lhs * rhs)` and if overflow occured. The
+    /// intermediates are effectively zero extended.
+    pub const fn overflowing_short_mul_add(self, lhs: Self, rhs: u64) -> (Self, bool) {
+        let mut mul_carry = 0;
+        let mut add_carry = 0;
+        let mut res = Self::zero();
+        const_for!(i in {0..LEN} {
+            let tmp0 = widen_mul_add(lhs.0[i], rhs, mul_carry);
+            mul_carry = tmp0.1;
+            let tmp1 = widen_add(self.0[i], tmp0.0, add_carry);
+            add_carry = tmp1.1;
+            res.0[i] = tmp1.0;
+        });
+        (res, (mul_carry != 0) || (add_carry != 0))
+    }
+
     /// Returns a tuple of `self + (lhs * rhs)` and if overflow occured.
     pub const fn overflowing_mul_add(self, lhs: Self, rhs: Self) -> (Self, bool) {
         let mut res = self;
@@ -336,7 +345,7 @@ impl<const LEN: usize> Uint<LEN> {
 
     /// Gets one `u64` digit from `self` starting at the bit index `start`.
     /// Bits that extend beyond `Self::bw()` are zeroed.
-    pub const fn get_digit(&self, start: usize) -> u64 {
+    pub(crate) const fn get_digit(&self, start: usize) -> u64 {
         let digits = digits_u(start);
         let bits = extra_u(start);
         let mut tmp = 0;
@@ -395,9 +404,10 @@ impl<const LEN: usize> Uint<LEN> {
         (Self::from_u64(small_quo), tmp_rem)
     }
 
-    /// Divides `duo` by `div` and returns a tuple of the quotient to and
+    /// Divides `self` by `div` and returns a tuple of the quotient to and
     /// remainder. Returns `None` if `div.is_zero()`.
-    pub const fn divide(duo: Self, div: Self) -> Option<(Self, Self)> {
+    pub const fn divide(self, div: Self) -> Option<(Self, Self)> {
+        let duo = self;
         if div.is_zero() {
             return None
         }

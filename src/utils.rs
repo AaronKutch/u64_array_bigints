@@ -46,3 +46,30 @@ pub const fn dd_division(duo: (u64, u64), div: (u64, u64)) -> ((u64, u64), (u64,
         (tmp1 as u64, (tmp1 >> 64) as u64),
     )
 }
+
+/// A basic for loop for const contexts
+#[doc(hidden)]
+#[macro_export]
+macro_rules! const_for {
+    ($i:ident in $range:block $b:block) => {
+        let mut $i: usize = $range.start.wrapping_sub(1);
+        loop {
+            // the increment must happen before `$b` so that `continue`s still cause it
+            $i = $i.wrapping_add(1);
+            if $i >= $range.end {
+                break
+            }
+            $b;
+        }
+    };
+    ($i:ident in $range:block.rev() $b:block) => {
+        let mut $i: usize = $range.end;
+        loop {
+            if $i <= $range.start {
+                break
+            }
+            $i = $i.wrapping_sub(1);
+            $b;
+        }
+    };
+}

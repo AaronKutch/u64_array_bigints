@@ -1,6 +1,10 @@
 use u64_array_bigints::U256;
 
 #[test]
+fn strings() {}
+
+/*
+#[test]
 fn serialization_test() {
     let v123 = U256::from_dec_or_hex_str("123").unwrap();
     assert_eq!(v123.low_u128(), 123);
@@ -59,3 +63,4 @@ fn le_be_test() {
     );
     assert!(U256::from_bytes_be(&[0u8; 33]).is_none());
 }
+*/

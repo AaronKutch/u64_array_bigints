@@ -9,3 +9,5 @@ bigints based on `u64` arrays.
 
 The `serde_support` feature flag is turned on by default.
 The crate is `no_std` by default.
+
+The `use_parity_uint` feature flag is turned on by default, turning it off uses new implementations.

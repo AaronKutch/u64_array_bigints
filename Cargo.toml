@@ -23,5 +23,5 @@ rand_xoshiro = "0.6"
 
 [features]
 default = ["serde_support", "use_parity_uint"]
-use_parity_uint = ["uint"]
 serde_support = ["serde"]
+use_parity_uint = ["uint"]

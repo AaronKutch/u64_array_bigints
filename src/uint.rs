@@ -5,7 +5,7 @@ use crate::{
     utils::{dd_division, digits_u, extra_u, widen_add, widen_mul_add, BITS},
 };
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Ord)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct Uint<const LEN: usize>(pub [u64; LEN]);
 
 // N.B. much of this code is taken from the `awint` crate, see it for better
@@ -122,13 +122,19 @@ impl<const LEN: usize> Uint<LEN> {
 
 impl<const LEN: usize> PartialOrd for Uint<LEN> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(if self.const_lt(other) {
+        Some(self.cmp(other))
+    }
+}
+
+impl<const LEN: usize> Ord for Uint<LEN> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        if self.const_lt(other) {
             Ordering::Less
         } else if self == other {
             Ordering::Equal
         } else {
             Ordering::Greater
-        })
+        }
     }
 }
 

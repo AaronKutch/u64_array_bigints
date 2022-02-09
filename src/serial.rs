@@ -11,7 +11,7 @@ use core::{
 #[cfg(feature = "serde_support")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::{const_for, U256};
+use crate::{const_for, utils::BITS, U256};
 
 #[derive(Debug, Clone)]
 pub enum FromStrRadixErr {
@@ -122,77 +122,74 @@ impl U256 {
         if self.is_zero() {
             return "0x0".to_owned()
         }
-        // Using SWAR techniques to process one u64 at a time. First, scatter `x` evenly
-        // into groups of 4 bits.
         let swar = |x: u64| -> u64 {
-            if x == 0 {
-                return 0x3030_3030_3030_3030
-            }
-            // scatter
+            // Using SWAR techniques to process one u32 at a time.
+            // First, scatter and reverse `x` evenly nto groups of 4 bits.
             // 0x0000_0000_abcd_efgh
-            // 0x0000_abcd_0000_efgh
-            // 0x00ab_00cd_00ef_00gh
-            // 0x0a0b_0c0d_0e0f_0g0h
+            // 0xefgh_0000_abcd_0000
+            // 0x00gh_00ef_00cd_00ab
+            // 0x0h0g_0f0e_0d0c_0b0a
             let mut x0: u64 = x & 0xffff;
             let mut x1: u64 = x & 0xffff_0000;
-            let mut x: u64 = x0 | (x1 << 16);
-            x0 = x & 0x00ff_0000_00ff;
-            x1 = x & 0xff00_0000_ff00;
-            x = x0 | (x1 << 8);
+            let mut x: u64 = (x0 << 48) | x1;
+            x0 = x & 0x00ff_0000_00ff_0000;
+            x1 = x & 0xff00_0000_ff00_0000;
+            x = x0 | (x1 >> 24);
             x0 = x & 0x000f_000f_000f_000f;
             x1 = x & 0x00f0_00f0_00f0_00f0;
-            x = x0 | (x1 << 4);
+            x = (x0 << 8) | (x1 >> 4);
 
             // because ASCII does not have letters immediately following numbers, we need to
             // differentiate between them to be able to add different offsets.
 
             // the two's complement of `10u4 == 0b1010u4` is `0b0110u4 == 0x6u4`.
-            // get the carries, if there is a carry the 4 bits were below 'a'
+            // get the carries, if there is a carry the 4 bits were above '9'
             let c = (x.wrapping_add(0x0606_0606_0606_0606) & 0x1010_1010_1010_1010) >> 4;
 
             // conditionally offset to b'a' or b'0'
-            let offsets = c.wrapping_mul(0x6161_6161_6161_6161)
-                | (c ^ 0x0101_0101_0101_0101).wrapping_mul(0x3030_3030_3030_3030);
+            let offsets = c.wrapping_mul(0x57) | (c ^ 0x0101_0101_0101_0101).wrapping_mul(0x30);
 
             x.wrapping_add(offsets)
         };
 
-        // need room for 256/4 bytes plus 2 for the leading "0x"
-        //let mut s_chunks = [0u64; 9];
-        // bytemuck currently only supports some sizes, round up
-        let mut s_chunks = [0u64; 16];
-        let mut byte_len = 0;
+        // need room for 256/4 bytes
+        let mut s_chunks = [0u64; 8];
+        let mut char_len = 0;
         for j in (0..4).rev() {
             // find first nonzero leading digit
             let y = self.0 .0[j];
             if y != 0 {
-                let lz = y.leading_zeros() as usize;
-                byte_len = (lz >> 2).wrapping_add(((lz & 0b11) != 0) as usize);
+                let sig_bits = BITS
+                    .wrapping_sub(y.leading_zeros() as usize)
+                    .wrapping_add(BITS.wrapping_mul(j));
+                // the nibble with the msb and all less significant nibbles count
+                char_len = (sig_bits >> 2).wrapping_add(((sig_bits & 0b11) != 0) as usize);
                 for i in 0..=j {
                     let x = self.0 .0[i];
                     let lo = x as u32 as u64;
                     let hi = (x >> 32) as u32 as u64;
-                    s_chunks[i << 1] = swar(lo);
-                    s_chunks[(i << 1).wrapping_add(1)] = swar(hi);
+                    // reverse at the chunk level
+                    s_chunks[s_chunks.len() - 1 - (i << 1)] = swar(lo);
+                    s_chunks[s_chunks.len() - 2 - (i << 1)] = swar(hi);
                 }
                 break
             }
         }
-        let s_bytes_le: [u8; 8 * 16] = bytemuck::try_cast(s_chunks).unwrap();
+        let s_bytes_le: [u8; 8 * 8] = bytemuck::try_cast(s_chunks).unwrap();
         // the +2 is for the extra leading "0x"
-        let mut s: Vec<u8> = alloc::vec![0; byte_len + 2];
-        for i in (0..byte_len).rev() {
-            s[i + 2] = s_bytes_le[byte_len - i - 1];
-        }
+        let mut s: Vec<u8> = alloc::vec![0; char_len + 2];
         s[0] = b'0';
         s[1] = b'x';
-        #[cfg(debug_assertions)]
+        s[2..].copy_from_slice(&s_bytes_le[(s_bytes_le.len() - char_len)..]);
+        #[cfg(all(debug_assertions, not(miri)))]
         {
             String::from_utf8(s).unwrap()
         }
-        #[cfg(not(debug_assertions))]
+        #[cfg(any(not(debug_assertions), miri))]
         {
-            String::from_utf8_unchecked(s).unwrap()
+            // Safety: the algorithm above can only output b'0'-b'9', b'a'-b'f', and b'x',
+            // and we have tested all nibble combinations
+            unsafe { String::from_utf8_unchecked(s) }
         }
     }
 }

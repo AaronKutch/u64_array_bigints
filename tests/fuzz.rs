@@ -177,6 +177,7 @@ fn fuzz_step<const LEN: usize>(rng: &mut Xoshiro128StarStar, x: &mut Uint<LEN>) 
     }
 }
 
+#[cfg(not(miri))]
 fn fuzz_lengths(bw: usize) -> Vec<usize> {
     if bw < 4 {
         return (0..bw).collect()
@@ -199,6 +200,7 @@ fn fuzz_lengths(bw: usize) -> Vec<usize> {
     v
 }
 
+#[cfg(not(miri))]
 macro_rules! edge_cases {
     ($fuzz_lengths:ident, $x:ident, $inner:block) => {
         for i0 in 0..$fuzz_lengths.len() {
@@ -216,22 +218,25 @@ macro_rules! edge_cases {
 fn fuzz<const LEN: usize>(iters: u32, seed: u64) {
     let mut rng = Xoshiro128StarStar::seed_from_u64(seed);
     let iw = LEN * 64;
-    let mut x0 = Uint::zero();
-    let mut x1 = Uint::zero();
+    let mut x0 = Uint::<LEN>::zero();
+    let mut x1 = Uint::<LEN>::zero();
     let mut y0 = ExtAwi::zero(bw(iw));
     let mut y1 = y0.clone();
     let mut y2 = y0.clone();
     let mut y3 = y0.clone();
 
     // edge case fuzzing
-    let fl = fuzz_lengths(iw);
-    edge_cases!(fl, x0, {
-        edge_cases!(fl, x1, {
-            uint_to_awint(&mut y0, x0);
-            uint_to_awint(&mut y1, x1);
-            identities_inner(&mut rng, x0, x1, &y0, &y1, &mut y2, &mut y3);
-        })
-    });
+    #[cfg(not(miri))]
+    {
+        let fl = fuzz_lengths(iw);
+        edge_cases!(fl, x0, {
+            edge_cases!(fl, x1, {
+                uint_to_awint(&mut y0, x0);
+                uint_to_awint(&mut y1, x1);
+                identities_inner(&mut rng, x0, x1, &y0, &y1, &mut y2, &mut y3);
+            })
+        });
+    }
 
     // random fuzzing
     for _ in 0..iters {

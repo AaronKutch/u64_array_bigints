@@ -1,4 +1,4 @@
-use core::cmp::Ordering;
+use core::num::NonZeroUsize;
 
 use crate::{
     const_for,
@@ -48,6 +48,42 @@ impl<const LEN: usize> Uint<LEN> {
             }
         });
         true
+    }
+
+    #[must_use]
+    pub const fn const_not(self) -> Self {
+        let mut res = Self::zero();
+        const_for!(i in {0..LEN} {
+            res.0[i] = !self.0[i];
+        });
+        res
+    }
+
+    #[must_use]
+    pub const fn const_or(self, rhs: Self) -> Self {
+        let mut res = Self::zero();
+        const_for!(i in {0..LEN} {
+            res.0[i] = self.0[i] | rhs.0[i];
+        });
+        res
+    }
+
+    #[must_use]
+    pub const fn const_and(self, rhs: Self) -> Self {
+        let mut res = Self::zero();
+        const_for!(i in {0..LEN} {
+            res.0[i] = self.0[i] & rhs.0[i];
+        });
+        res
+    }
+
+    #[must_use]
+    pub const fn const_xor(self, rhs: Self) -> Self {
+        let mut res = Self::zero();
+        const_for!(i in {0..LEN} {
+            res.0[i] = self.0[i] ^ rhs.0[i];
+        });
+        res
     }
 
     pub const fn overflowing_add(self, rhs: Self) -> (Self, bool) {
@@ -118,23 +154,103 @@ impl<const LEN: usize> Uint<LEN> {
             Some(tmp.0)
         }
     }
-}
 
-impl<const LEN: usize> PartialOrd for Uint<LEN> {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl<const LEN: usize> Ord for Uint<LEN> {
-    fn cmp(&self, other: &Self) -> Ordering {
-        if self.const_lt(other) {
-            Ordering::Less
-        } else if self == other {
-            Ordering::Equal
-        } else {
-            Ordering::Greater
+    pub const fn checked_shl(self, s: usize) -> Option<Self> {
+        match NonZeroUsize::new(s) {
+            None => Some(self),
+            Some(s) if s.get() < Self::bw() => {
+                let mut res = Self::zero();
+                // digits to shift by
+                let digits = digits_u(s.get());
+                const_for!(i in {0..(LEN - digits)} {
+                    res.0[i + digits] = self.0[i];
+                });
+                // bits to shift by (modulo digit size)
+                let bits = extra_u(s.get());
+                if bits != 0 {
+                    const_for!(i in {1..LEN}.rev() {
+                        res.0[i] = (res.0[i - 1] >> (BITS - bits))
+                            | (res.0[i] << bits);
+                    });
+                    res.0[0] <<= bits;
+                }
+                Some(res)
+            }
+            _ => None,
         }
+    }
+
+    /// # Panics
+    ///
+    /// If `s >= Self::bw()`
+    pub(crate) const fn wrapping_shl(self, s: usize) -> Self {
+        if let Some(x) = self.checked_shl(s) {
+            x
+        } else {
+            panic!("called `wrapping_shl` with `s >= Self::bw()`")
+        }
+    }
+
+    pub const fn checked_shr(self, s: usize) -> Option<Self> {
+        match NonZeroUsize::new(s) {
+            None => Some(self),
+            Some(s) if s.get() < Self::bw() => {
+                let mut res = Self::zero();
+                // digits to shift by
+                let digits = digits_u(s.get());
+                const_for!(i in {0..(LEN - digits)} {
+                    res.0[i] = self.0[i + digits];
+                });
+                // bits to shift by (modulo digit size)
+                let bits = extra_u(s.get());
+                if bits != 0 {
+                    const_for!(i in {0..(LEN - 1)} {
+                        res.0[i] = (res.0[i] >> bits)
+                            | (res.0[i + 1] << (BITS - bits));
+                    });
+                    res.0[LEN - 1] >>= bits;
+                }
+                Some(res)
+            }
+            _ => None,
+        }
+    }
+
+    /// # Panics
+    ///
+    /// If `s >= Self::bw()`
+    pub(crate) const fn wrapping_shr(self, s: usize) -> Self {
+        if let Some(x) = self.checked_shr(s) {
+            x
+        } else {
+            panic!("called `wrapping_shr` with `s >= Self::bw()`")
+        }
+    }
+
+    /// # Panics
+    ///
+    /// If `s >= Self::bw()`
+    pub const fn checked_rotl(self, s: usize) -> Option<Self> {
+        if s >= Self::bw() {
+            None
+        } else if s == 0 {
+            Some(self)
+        } else {
+            Some(
+                self.wrapping_shl(s)
+                    .const_or(self.wrapping_shr(Self::bw() - s)),
+            )
+        }
+    }
+
+    // TODO replace
+    #[doc(hidden)]
+    pub fn debug_hex(self) -> alloc::string::String {
+        let mut s = alloc::string::String::new();
+        for i in (0..LEN).rev() {
+            s += &alloc::format!("_{:x}_{:x}", (self.0[i] >> 32) as u32, self.0[i] as u32);
+        }
+        s
     }
 }
 
@@ -192,7 +308,7 @@ impl<const LEN: usize> Uint<LEN> {
 
     /// Equality comparison
     pub const fn const_eq(&self, rhs: &Self) -> bool {
-        const_for!(i in {0..LEN}.rev() {
+        const_for!(i in {0..LEN} {
             let x = self.0[i];
             let y = rhs.0[i];
             if x != y {
@@ -220,7 +336,7 @@ impl<const LEN: usize> Uint<LEN> {
 
     /// Less-or-equal comparison
     pub const fn const_le(&self, rhs: &Self) -> bool {
-        self.const_eq(rhs) || rhs.const_lt(self)
+        self.const_eq(rhs) || self.const_lt(rhs)
     }
 
     /// Greater-than comparison
@@ -245,7 +361,7 @@ impl<const LEN: usize> Uint<LEN> {
 
     /// Returns `self` incremented starting from `digit`
     pub(crate) const fn inc_starting_from_digit(self, digit: usize) -> Self {
-        let mut res = Self::zero();
+        let mut res = self;
         const_for!(i in {digit..LEN} {
             match self.0[i].overflowing_add(1) {
                 (v, false) => {
@@ -332,19 +448,11 @@ impl<const LEN: usize> Uint<LEN> {
     /// because `unwrap` is not `const` on stable, this exists for
     /// `checked_short_divide(..).unwrap()`
     pub const fn panicking_short_divide(self, div: u64) -> (Self, u64) {
-        if div == 0 {
+        if let Some((quo, rem)) = self.checked_short_divide(div) {
+            (quo, rem)
+        } else {
             panic!("division by zero")
         }
-        let mut res = Self::zero();
-        let mut rem = 0;
-        const_for!(i in {0..LEN}.rev() {
-            let y = self.0[i];
-            // the panic here is avoided by the early return
-            let tmp = dd_division((y, rem), (div, 0));
-            rem = tmp.1.0;
-            res.0[i] = tmp.0.0;
-        });
-        (res, rem)
     }
 
     // see the `awint` crate for what this all does
@@ -583,8 +691,8 @@ impl<const LEN: usize> Uint<LEN> {
 
             if div_lz <= duo_lz {
                 // quotient can have 0 or 1 added to it
-                if div_lz == duo_lz && div.const_le(&rem) {
-                    quo.inc_starting_from_digit(0);
+                if (div_lz == duo_lz) && div.const_le(&rem) {
+                    quo = quo.inc_starting_from_digit(0);
                     rem = rem.wrapping_sub(div);
                 }
                 return Some((quo, rem))
@@ -598,7 +706,9 @@ impl<const LEN: usize> Uint<LEN> {
                 let tmp0 = widen_add(quo.resize_to_u64(), tmp.0 .0, 0);
 
                 quo.0[0] = tmp0.0;
-                quo = quo.inc_starting_from_digit(1);
+                if tmp0.1 != 0 {
+                    quo = quo.inc_starting_from_digit(1);
+                }
                 rem = Self::from_u64(tmp.1 .0);
                 rem.0[1] = tmp.1 .1;
                 return Some((quo, rem))

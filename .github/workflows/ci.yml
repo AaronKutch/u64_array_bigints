@@ -21,6 +21,20 @@ jobs:
           cargo test --all-features
           cargo test --release --all-features
 
+  miri:
+    name: Miri
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install most recent Miri
+        run: |
+          rustup set profile minimal
+          rustup default "nightly-$(curl -s https://rust-lang.github.io/rustup-components-history/x86_64-unknown-linux-gnu/miri)"
+          rustup component add miri
+      - name: Run test suite with Miri
+        run: |
+          cargo miri test
+
   rustfmt:
     name: Rustfmt
     runs-on: ubuntu-latest

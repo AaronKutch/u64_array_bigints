@@ -1,3 +1,5 @@
+#![cfg(not(feature = "use_parity_uint"))]
+
 use awint::{bw, Bits, ExtAwi};
 use rand::SeedableRng;
 // See `testcrate` in https://github.com/AaronKutch/awint to see the strategy

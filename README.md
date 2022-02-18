@@ -11,3 +11,4 @@ The `serde_support` feature flag is turned on by default.
 The crate is `no_std` by default.
 
 The `use_parity_uint` feature flag is turned on by default, turning it off uses new implementations.
+Note: when testing, a test run should be done with the flag on and another while it is off.

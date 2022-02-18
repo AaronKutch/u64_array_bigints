@@ -1,9 +1,11 @@
 #![cfg(not(feature = "use_parity_uint"))]
 
 use awint::{bw, Bits, ExtAwi};
-use rand::SeedableRng;
 // See `testcrate` in https://github.com/AaronKutch/awint to see the strategy
-use rand_xoshiro::{rand_core::RngCore, Xoshiro128StarStar};
+use rand_xoshiro::{
+    rand_core::{RngCore, SeedableRng},
+    Xoshiro128StarStar,
+};
 use u64_array_bigints::Uint;
 
 const N: u32 = if cfg!(miri) {

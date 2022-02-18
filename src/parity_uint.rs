@@ -168,6 +168,38 @@ impl U256 {
             Some(self.div_mod(other))
         }
     }
+
+    /// Randomly-assigns `self` using a `rand_core::RngCore` random number
+    /// generator
+    ///
+    /// ```
+    /// // Example using the `rand_xoshiro` crate.
+    /// use rand_xoshiro::{rand_core::SeedableRng, Xoshiro128StarStar};
+    /// use u64_array_bigints::U256;
+    ///
+    /// let mut rng = Xoshiro128StarStar::seed_from_u64(0);
+    ///
+    /// assert_eq!(
+    ///     U256::rand_using(&mut rng),
+    ///     U256::from_u64_array([
+    ///         0x9a089d75dec9045d,
+    ///         0xc3e16405ab77d362,
+    ///         0x60dea0565c95a8da,
+    ///         0xa4290614c25a5140,
+    ///     ])
+    /// );
+    /// ```
+    #[cfg(feature = "rand_support")]
+    pub fn rand_using<R>(rng: &mut R) -> Self
+    where
+        R: rand_core::RngCore,
+    {
+        let mut res = Self::zero();
+        for i in 0..res.0.len() {
+            res.0[i] = rng.next_u64();
+        }
+        res
+    }
 }
 
 impl Serialize for U256 {

@@ -715,4 +715,18 @@ impl<const LEN: usize> Uint<LEN> {
             }
         }
     }
+
+    /// Randomly-assigns `self` using a `rand_core::RngCore` random number
+    /// generator
+    #[cfg(feature = "rand_support")]
+    pub fn rand_using<R>(rng: &mut R) -> Self
+    where
+        R: rand_core::RngCore,
+    {
+        let mut res = Self::zero();
+        for i in 0..LEN {
+            res.0[i] = rng.next_u64();
+        }
+        res
+    }
 }

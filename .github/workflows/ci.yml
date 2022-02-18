@@ -18,7 +18,7 @@ jobs:
           rustup default stable
       - name: Run test suite
         run: |
-          cargo test --no-default-features
+          cargo test --no-default-features --features=rand_support,serde_support
           cargo test --all-features
           cargo test --release --all-features
 
@@ -34,6 +34,7 @@ jobs:
           rustup component add miri
       - name: Run test suite with Miri
         run: |
+          cargo miri test --no-default-features
           cargo miri test
 
   rustfmt:

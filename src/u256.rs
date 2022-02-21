@@ -7,12 +7,42 @@ pub struct U256(pub Uint<4>);
 macro_rules! to_from_array {
     ($($to_fn:ident $from_fn:ident $uX:ident $n:expr);*;) => {
         $(
+            pub fn $from_fn(x: [$uX; $n]) -> Self {
+                Self(Uint(bytemuck::try_cast(x).unwrap()))
+            }
+
             pub fn $to_fn(self) -> [$uX; $n] {
                 bytemuck::try_cast(self.0.0).unwrap()
             }
+        )*
+    };
+}
 
-            pub fn $from_fn(x: [$uX; $n]) -> Self {
-                Self(Uint(bytemuck::try_cast(x).unwrap()))
+macro_rules! to_from_primitive {
+    ($($to_fn:ident $from_fn:ident $uX:ident);*;) => {
+        $(
+            pub const fn $from_fn(x: $uX) -> Self {
+                let mut res = Self::zero();
+                res.0.0[0] = x as u64;
+                res
+            }
+
+            pub const fn $to_fn(self) -> $uX {
+                self.0.0[0] as $uX
+            }
+        )*
+    };
+}
+
+macro_rules! try_resize {
+    ($($try_resize_fn:ident $resize_fn:ident $uX:ident $n:expr);*;) => {
+        $(
+            pub const fn $try_resize_fn(self) -> Option<$uX> {
+                if self.lz() > (256 - $n) {
+                    None
+                } else {
+                    Some(self.$resize_fn())
+                }
             }
         )*
     };
@@ -23,9 +53,56 @@ impl U256 {
         to_u8_array from_u8_array u8 32;
         to_u16_array from_u16_array u16 16;
         to_u32_array from_u32_array u32 8;
-        to_u64_array from_u64_array u64 4;
         to_u128_array from_u128_array u128 2;
     );
+
+    to_from_primitive!(
+        resize_to_u8 from_u8 u8;
+        resize_to_u16 from_u16 u16;
+        resize_to_u32 from_u32 u32;
+        resize_to_u64 from_u64 u64;
+    );
+
+    try_resize!(
+        try_resize_to_bool resize_to_bool bool 1;
+        try_resize_to_u8 resize_to_u8 u8 8;
+        try_resize_to_u16 resize_to_u16 u16 16;
+        try_resize_to_u32 resize_to_u32 u32 32;
+        try_resize_to_u64 resize_to_u64 u64 64;
+        try_resize_to_u128 resize_to_u128 u128 128;
+    );
+
+    // Do this separate because we can do it `const`. Const transmute is not stable
+    // yet, so even if we went away from `bytemuck` we could not fix it performantly
+
+    pub const fn from_u64_array(x: [u64; 4]) -> Self {
+        Self(Uint(x))
+    }
+
+    pub const fn to_u64_array(self) -> [u64; 4] {
+        self.0 .0
+    }
+
+    pub const fn from_bool(x: bool) -> Self {
+        let mut res = Self::zero();
+        res.0 .0[0] = x as u64;
+        res
+    }
+
+    pub const fn resize_to_bool(self) -> bool {
+        (self.0 .0[0] & 1) != 0
+    }
+
+    pub const fn from_u128(x: u128) -> Self {
+        let mut res = Self::zero();
+        res.0 .0[0] = x as u64;
+        res.0 .0[1] = (x >> 64) as u64;
+        res
+    }
+
+    pub const fn resize_to_u128(self) -> u128 {
+        (self.0 .0[0] as u128) | ((self.0 .0[1] as u128) << 64)
+    }
 
     pub const fn zero() -> Self {
         Self(Uint::zero())
@@ -43,9 +120,23 @@ impl U256 {
         self.0.is_zero()
     }
 
+    /// Significant bits
+    pub fn sig_bits(self) -> usize {
+        256usize.wrapping_sub(self.lz())
+    }
+
     pub fn as_u8_slice_mut(&mut self) -> &mut [u8; 32] {
         // this will not panic because `[u8; 32]` is the right size
         bytemuck::try_cast_mut(&mut self.0 .0).unwrap()
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
+        if bytes.len() > 32 {
+            return None
+        }
+        let mut a = [0u8; 32];
+        a[..bytes.len()].copy_from_slice(bytes);
+        Some(U256::from_u8_array(a))
     }
 
     /// # Errors
@@ -117,6 +208,36 @@ impl U256 {
         match self.0.checked_mul(rhs.0) {
             Some(x) => Some(Self(x)),
             None => None,
+        }
+    }
+
+    pub const fn checked_shl(self, s: usize) -> Option<Self> {
+        match self.0.checked_shl(s) {
+            Some(x) => Some(Self(x)),
+            None => None,
+        }
+    }
+
+    pub const fn checked_shr(self, s: usize) -> Option<Self> {
+        match self.0.checked_shr(s) {
+            Some(x) => Some(Self(x)),
+            None => None,
+        }
+    }
+
+    /// Shift left by 1
+    pub const fn shl1(self) -> Self {
+        match self.checked_shl(1) {
+            Some(x) => x,
+            None => unreachable!(),
+        }
+    }
+
+    /// Shift right by 1
+    pub const fn shr1(self) -> Self {
+        match self.checked_shr(1) {
+            Some(x) => x,
+            None => unreachable!(),
         }
     }
 
@@ -193,14 +314,6 @@ impl U256 {
 
     pub const fn const_ge(&self, rhs: &Self) -> bool {
         self.0.const_eq(&rhs.0)
-    }
-
-    pub const fn resize_to_u64(&self) -> u64 {
-        self.0.resize_to_u64()
-    }
-
-    pub const fn from_u64(x: u64) -> Self {
-        Self(Uint::from_u64(x))
     }
 
     pub const fn overflowing_short_cin_mul(self, cin: u64, rhs: u64) -> (Self, u64) {

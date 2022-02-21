@@ -1,13 +1,18 @@
+// `serial.rs` is shared with this implementation, functions that could not be
+// shared are reimplemented here
+use crate::{
+    const_for,
+    utils::{widen_add, widen_mul_add},
+};
+
 #[allow(clippy::all)]
 mod clippy_guard {
     uint::construct_uint! {
         pub struct U256(4);
     }
 }
-use alloc::{borrow::ToOwned, string::String, vec::Vec};
 
 pub use clippy_guard::U256;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
 pub use uint::FromStrRadixErr;
 
 // the unwraps here will not panic if $n is correct
@@ -25,101 +30,90 @@ macro_rules! to_from_array {
     };
 }
 
+macro_rules! to_from_primitive {
+    ($($to_fn:ident $from_fn:ident $uX:ident);*;) => {
+        $(
+            pub const fn $from_fn(x: $uX) -> Self {
+                let mut res = Self::zero();
+                res.0[0] = x as u64;
+                res
+            }
+
+            pub const fn $to_fn(self) -> $uX {
+                self.0[0] as $uX
+            }
+        )*
+    };
+}
+
+macro_rules! try_resize {
+    ($($try_resize_fn:ident $resize_fn:ident $uX:ident $n:expr);*;) => {
+        $(
+            pub fn $try_resize_fn(self) -> Option<$uX> {
+                if self.bits() > $n {
+                    None
+                } else {
+                    Some(self.$resize_fn())
+                }
+            }
+        )*
+    };
+}
+
 impl U256 {
     to_from_array!(
         to_u8_array from_u8_array u8 32;
         to_u16_array from_u16_array u16 16;
         to_u32_array from_u32_array u32 8;
-        to_u64_array from_u64_array u64 4;
         to_u128_array from_u128_array u128 2;
     );
 
-    pub fn to_hex_string(self) -> String {
-        if self.is_zero() {
-            return "0x0".to_owned()
-        }
-        let swar = |x: u64| -> u64 {
-            // Using SWAR techniques to process one u32 at a time.
-            // First, scatter and reverse `x` evenly nto groups of 4 bits.
-            // 0x0000_0000_abcd_efgh
-            // 0xefgh_0000_abcd_0000
-            // 0x00gh_00ef_00cd_00ab
-            // 0x0h0g_0f0e_0d0c_0b0a
-            let mut x0: u64 = x & 0xffff;
-            let mut x1: u64 = x & 0xffff_0000;
-            let mut x: u64 = (x0 << 48) | x1;
-            x0 = x & 0x00ff_0000_00ff_0000;
-            x1 = x & 0xff00_0000_ff00_0000;
-            x = x0 | (x1 >> 24);
-            x0 = x & 0x000f_000f_000f_000f;
-            x1 = x & 0x00f0_00f0_00f0_00f0;
-            x = (x0 << 8) | (x1 >> 4);
+    to_from_primitive!(
+        resize_to_u8 from_u8 u8;
+        resize_to_u16 from_u16 u16;
+        resize_to_u32 from_u32 u32;
+        resize_to_u64 from_u64 u64;
+    );
 
-            // because ASCII does not have letters immediately following numbers, we need to
-            // differentiate between them to be able to add different offsets.
+    try_resize!(
+        try_resize_to_bool resize_to_bool bool 1;
+        try_resize_to_u8 resize_to_u8 u8 8;
+        try_resize_to_u16 resize_to_u16 u16 16;
+        try_resize_to_u32 resize_to_u32 u32 32;
+        try_resize_to_u64 resize_to_u64 u64 64;
+        try_resize_to_u128 resize_to_u128 u128 128;
+    );
 
-            // the two's complement of `10u4 == 0b1010u4` is `0b0110u4 == 0x6u4`.
-            // get the carries, if there is a carry the 4 bits were above '9'
-            let c = (x.wrapping_add(0x0606_0606_0606_0606) & 0x1010_1010_1010_1010) >> 4;
+    // Do this separate because we can do it `const`. Const transmute is not stable
+    // yet, so even if we went away from `bytemuck` we could not fix it performantly
 
-            // conditionally offset to b'a' or b'0'
-            let offsets = c.wrapping_mul(0x57) | (c ^ 0x0101_0101_0101_0101).wrapping_mul(0x30);
-
-            x.wrapping_add(offsets)
-        };
-
-        // need room for 256/4 bytes
-        let mut s_chunks = [0u64; 8];
-        let mut char_len = 0;
-        for j in (0..4).rev() {
-            // find first nonzero leading digit
-            let y = self.0[j];
-            if y != 0 {
-                let sig_bits = 64usize
-                    .wrapping_sub(y.leading_zeros() as usize)
-                    .wrapping_add(64usize.wrapping_mul(j));
-                // the nibble with the msb and all less significant nibbles count
-                char_len = (sig_bits >> 2).wrapping_add(((sig_bits & 0b11) != 0) as usize);
-                for i in 0..=j {
-                    let x = self.0[i];
-                    let lo = x as u32 as u64;
-                    let hi = (x >> 32) as u32 as u64;
-                    // reverse at the chunk level
-                    s_chunks[s_chunks.len() - 1 - (i << 1)] = swar(lo);
-                    s_chunks[s_chunks.len() - 2 - (i << 1)] = swar(hi);
-                }
-                break
-            }
-        }
-        let s_bytes_le: [u8; 8 * 8] = bytemuck::try_cast(s_chunks).unwrap();
-        // the +2 is for the extra leading "0x"
-        let mut s: Vec<u8> = alloc::vec![0; char_len + 2];
-        s[0] = b'0';
-        s[1] = b'x';
-        s[2..].copy_from_slice(&s_bytes_le[(s_bytes_le.len() - char_len)..]);
-        #[cfg(all(debug_assertions, not(miri)))]
-        {
-            String::from_utf8(s).unwrap()
-        }
-        #[cfg(any(not(debug_assertions), miri))]
-        {
-            // Safety: the algorithm above can only output b'0'-b'9', b'a'-b'f', and b'x',
-            // and we have tested all nibble combinations
-            unsafe { String::from_utf8_unchecked(s) }
-        }
+    pub const fn from_u64_array(x: [u64; 4]) -> Self {
+        Self(x)
     }
 
-    /// The `uint` implementation of `FromStr` is unsuitable because it is
-    /// hexadecimal only (intentional by their developers because they did not
-    /// make the mistake of using decimal in message passing implementations and
-    /// do not have wasteful "0x" prefixes), this function will switch between
-    /// hexadecimal and decimal depending on if there is a "0x" prefix.
-    pub fn from_dec_or_hex_str(s: &str) -> Result<U256, FromStrRadixErr> {
-        if let Some(val) = s.strip_prefix("0x") {
-            Ok(U256::from_str_radix(val, 16)?)
-        } else {
-            Ok(U256::from_str_radix(s, 10)?)
-        }
+    pub const fn to_u64_array(self) -> [u64; 4] {
+        self.0
+    }
+
+    pub const fn from_bool(x: bool) -> Self {
+        let mut res = Self::zero();
+        res.0[0] = x as u64;
+        res
+    }
+
+    pub const fn resize_to_bool(self) -> bool {
+        (self.0[0] & 1) != 0
+    }
+
+    pub const fn from_u128(x: u128) -> Self {
+        let mut res = Self::zero();
+        res.0[0] = x as u64;
+        res.0[1] = (x >> 64) as u64;
+        res
+    }
+
+    pub const fn resize_to_u128(self) -> u128 {
+        (self.0[0] as u128) | ((self.0[1] as u128) << 64)
     }
 
     pub fn as_u8_slice_mut(&mut self) -> &mut [u8; 32] {
@@ -146,6 +140,11 @@ impl U256 {
         a
     }
 
+    /// Significant bits
+    pub fn sig_bits(self) -> usize {
+        self.bits()
+    }
+
     #[must_use]
     pub fn wrapping_add(self, other: U256) -> U256 {
         self.overflowing_add(other).0
@@ -167,6 +166,35 @@ impl U256 {
         } else {
             Some(self.div_mod(other))
         }
+    }
+
+    /// Returns a tuple of `cin + (self * rhs)` and the overflow. The
+    /// intermediates are effectively zero extended.
+    pub const fn overflowing_short_cin_mul(self, cin: u64, rhs: u64) -> (Self, u64) {
+        let mut res = Self::zero();
+        let mut carry = cin;
+        const_for!(i in {0usize..4} {
+            let tmp = widen_mul_add(self.0[i], rhs, carry);
+            res.0[i] = tmp.0;
+            carry = tmp.1;
+        });
+        (res, carry)
+    }
+
+    /// Returns `self + (lhs * rhs)` and if overflow occured. The
+    /// intermediates are effectively zero extended.
+    pub const fn overflowing_short_mul_add(self, lhs: Self, rhs: u64) -> (Self, bool) {
+        let mut mul_carry = 0;
+        let mut add_carry = 0;
+        let mut res = Self::zero();
+        const_for!(i in {0usize..4} {
+            let tmp0 = widen_mul_add(lhs.0[i], rhs, mul_carry);
+            mul_carry = tmp0.1;
+            let tmp1 = widen_add(self.0[i], tmp0.0, add_carry);
+            add_carry = tmp1.1;
+            res.0[i] = tmp1.0;
+        });
+        (res, (mul_carry != 0) || (add_carry != 0))
     }
 
     /// Randomly-assigns `self` using a `rand_core::RngCore` random number
@@ -199,25 +227,5 @@ impl U256 {
             res.0[i] = rng.next_u64();
         }
         res
-    }
-}
-
-impl Serialize for U256 {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_str(&self.to_hex_string())
-    }
-}
-
-impl<'de> Deserialize<'de> for U256 {
-    fn deserialize<D>(deserializer: D) -> Result<U256, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        // Create U256 given the sliced data, and radix
-        U256::from_dec_or_hex_str(&String::deserialize(deserializer)?)
-            .map_err(serde::de::Error::custom)
     }
 }

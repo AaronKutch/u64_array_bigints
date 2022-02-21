@@ -1,7 +1,6 @@
 #![no_std]
 
 extern crate alloc;
-#[cfg(not(feature = "use_parity_uint"))]
 mod serial;
 #[cfg(not(feature = "use_parity_uint"))]
 mod std_ops;
@@ -9,7 +8,6 @@ mod std_ops;
 mod u256;
 #[cfg(not(feature = "use_parity_uint"))]
 mod uint;
-#[cfg(not(feature = "use_parity_uint"))]
 mod utils;
 #[cfg(not(feature = "use_parity_uint"))]
 pub use serial::FromStrRadixErr;

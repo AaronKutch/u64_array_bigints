@@ -1,12 +1,5 @@
-use alloc::{
-    borrow::ToOwned,
-    string::{String, ToString},
-    vec::Vec,
-};
-use core::{
-    fmt::{self, Display},
-    str::FromStr,
-};
+use alloc::{borrow::ToOwned, string::String, vec::Vec};
+use core::fmt::{self, Display};
 
 #[cfg(feature = "serde_support")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -59,13 +52,16 @@ const fn verify_for_bytes_assign(src: &[u8], radix: u8) -> Result<(), FromStrRad
 }
 
 impl U256 {
-    pub fn from_bytes_radix(src: &[u8], radix: u8) -> Result<Self, FromStrRadixErr> {
+    pub const fn from_bytes_radix(src: &[u8], radix: u8) -> Result<Self, FromStrRadixErr> {
         if let Err(e) = verify_for_bytes_assign(src, radix) {
             return Err(e)
         }
         // the accumulator
         let mut pad0 = Self::zero();
         // contains the radix exponential
+        #[cfg(feature = "use_parity_uint")]
+        let mut pad1 = Self([1, 0, 0, 0]);
+        #[cfg(not(feature = "use_parity_uint"))]
         let mut pad1 = Self::one();
         const_for!(i in {0..src.len()}.rev() {
             let b = src[i];
@@ -102,16 +98,38 @@ impl U256 {
         Ok(pad0)
     }
 
-    pub fn from_str_radix(src: &str, radix: u8) -> Result<Self, FromStrRadixErr> {
+    #[cfg(not(feature = "use_parity_uint"))]
+    pub const fn from_str_radix(src: &str, radix: u8) -> Result<Self, FromStrRadixErr> {
         Self::from_bytes_radix(src.as_bytes(), radix)
     }
 
+    /// Returns `src` parsed as a decimal representation. This function is
+    /// intended for constants and literals, and not fallible conversions.
+    ///
+    /// # Panics
+    ///
+    /// if `from_str_radix(src, 10).is_err()`
+    #[track_caller]
+    pub const fn from_dec_str_panicking(src: &str) -> Self {
+        match Self::from_bytes_radix(src.as_bytes(), 10) {
+            Ok(x) => x,
+            // we run into const stabilization issues if we try to print the message
+            Err(_) => panic!("`from_dec_str_panicking` panicked"),
+        }
+    }
+
     /// Uses radix 16 if `src` has a leading `0x`, otherwise uses radix 10
+    ///
+    /// The `uint` implementation of `FromStr` is unsuitable because it is
+    /// hexadecimal only (intentional by their developers because they did not
+    /// make the mistake of using decimal in message passing implementations and
+    /// do not have wasteful "0x" prefixes), this function will switch between
+    /// hexadecimal and decimal depending on if there is a "0x" prefix.
     pub fn from_dec_or_hex_str(src: &str) -> Result<Self, FromStrRadixErr> {
         let src = src.as_bytes();
-        if src.len() < 2 {
+        if src.len() <= 2 {
             Self::from_bytes_radix(src, 10)
-        } else if (src[0] == b'0') && (src[1] == b'1') {
+        } else if (src[0] == b'0') && (src[1] == b'x') {
             Self::from_bytes_radix(&src[2..], 16)
         } else {
             Self::from_bytes_radix(src, 10)
@@ -124,7 +142,7 @@ impl U256 {
         }
         let swar = |x: u64| -> u64 {
             // Using SWAR techniques to process one u32 at a time.
-            // First, scatter and reverse `x` evenly nto groups of 4 bits.
+            // First, scatter and reverse `x` evenly into groups of 4 bits.
             // 0x0000_0000_abcd_efgh
             // 0xefgh_0000_abcd_0000
             // 0x00gh_00ef_00cd_00ab
@@ -157,6 +175,9 @@ impl U256 {
         let mut char_len = 0;
         for j in (0..4).rev() {
             // find first nonzero leading digit
+            #[cfg(feature = "use_parity_uint")]
+            let y = self.0[j];
+            #[cfg(not(feature = "use_parity_uint"))]
             let y = self.0 .0[j];
             if y != 0 {
                 let sig_bits = BITS
@@ -165,6 +186,9 @@ impl U256 {
                 // the nibble with the msb and all less significant nibbles count
                 char_len = (sig_bits >> 2).wrapping_add(((sig_bits & 0b11) != 0) as usize);
                 for i in 0..=j {
+                    #[cfg(feature = "use_parity_uint")]
+                    let x = self.0[i];
+                    #[cfg(not(feature = "use_parity_uint"))]
                     let x = self.0 .0[i];
                     let lo = x as u32 as u64;
                     let hi = (x >> 32) as u32 as u64;
@@ -192,21 +216,44 @@ impl U256 {
             unsafe { String::from_utf8_unchecked(s) }
         }
     }
+
+    /// Returns `10^exp`, or `None` if overflow occurs
+    pub const fn checked_exp10(exp: usize) -> Option<Self> {
+        #[cfg(feature = "use_parity_uint")]
+        let mut res = Self([1, 0, 0, 0]);
+        #[cfg(not(feature = "use_parity_uint"))]
+        let mut res = Self::one();
+        const_for!(i in {0..exp} {
+            let tmp = res.overflowing_short_cin_mul(0, 10);
+            if tmp.1 != 0 {
+                return None
+            }
+            res = tmp.0;
+        });
+        Some(res)
+    }
 }
 
-impl FromStr for U256 {
+/*impl FromStr for U256 {
     type Err = FromStrRadixErr;
 
     /// Uses `from_dec_or_hex_str`
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Self::from_dec_or_hex_str(s)
     }
-}
+}*/
 
-impl ToString for U256 {
+/*impl ToString for U256 {
     /// Uses `to_hex_string`
     fn to_string(&self) -> String {
         self.to_hex_string()
+    }
+}*/
+
+#[cfg(not(feature = "use_parity_uint"))]
+impl fmt::LowerHex for U256 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.to_hex_string())
     }
 }
 
@@ -216,7 +263,7 @@ impl Serialize for U256 {
     where
         S: Serializer,
     {
-        serializer.serialize_str(&self.to_string())
+        serializer.serialize_str(&self.to_hex_string())
     }
 }
 

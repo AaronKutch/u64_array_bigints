@@ -12,17 +12,11 @@ keywords = ["bigint", "no_std"]
 categories = ["data-structures", "no-std"]
 
 [dependencies]
-bytemuck = { version = "1.7", default-features = false }
-rand_core = { version = "0.6", default-features = false, optional = true }
-serde = { version = "1.0", optional = true }
-uint = { version = "0.9", default-features = false, optional = true }
-
-[dev-dependencies]
-awint = { version = "0.2", default-features = false, features = ["alloc"] }
-rand_xoshiro = { version = "0.6", default-features = false }
+u64_array_bigints_core = { version = "0.1.0", path = "../u64_array_bigints_core", default-features = false }
+u64_array_bigints_macros = { version = "0.1.0", path = "../u64_array_bigints_macros", default-features = false }
 
 [features]
 default = ["rand_support", "serde_support", "use_parity_uint"]
-rand_support = ["rand_core"]
-serde_support = ["serde"]
-use_parity_uint = ["uint"]
+rand_support = ["u64_array_bigints_core/rand_support"]
+serde_support = ["u64_array_bigints_core/serde_support"]
+use_parity_uint = ["u64_array_bigints_core/use_parity_uint"]

@@ -226,6 +226,7 @@ impl U256 {
     }
 
     /// Shift left by 1
+    #[must_use]
     pub const fn shl1(self) -> Self {
         match self.checked_shl(1) {
             Some(x) => x,
@@ -234,6 +235,7 @@ impl U256 {
     }
 
     /// Shift right by 1
+    #[must_use]
     pub const fn shr1(self) -> Self {
         match self.checked_shr(1) {
             Some(x) => x,

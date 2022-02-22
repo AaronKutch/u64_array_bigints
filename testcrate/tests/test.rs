@@ -1,5 +1,4 @@
-use u64_array_bigints::U256;
-use u64_array_bigints_macros::u256;
+use u64_array_bigints::{u256, U256};
 
 #[test]
 fn serialization_test() {

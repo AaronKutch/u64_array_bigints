@@ -8,8 +8,7 @@ publish = false
 awint = { version = "0.2", default-features = false, features = ["alloc"] }
 rand_xoshiro = { version = "0.6", default-features = false }
 u64_array_bigints = { path = "../u64_array_bigints", default-features = false, features = ["rand_support", "serde_support"] }
-u64_array_bigints_macros = { path = "../u64_array_bigints_macros", default-features = false }
 
 [features]
 default = ["use_parity_uint"]
-use_parity_uint = ["u64_array_bigints/use_parity_uint", "u64_array_bigints_macros/use_parity_uint"]
+use_parity_uint = ["u64_array_bigints/use_parity_uint"]

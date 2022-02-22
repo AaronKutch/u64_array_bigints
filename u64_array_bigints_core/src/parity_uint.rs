@@ -124,6 +124,18 @@ impl U256 {
     /// # Errors
     ///
     /// If the number of bytes is greater than the number of bytes in `Self`
+    pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
+        if bytes.len() > 32 {
+            return None
+        }
+        let mut a = [0u8; 32];
+        a[(32 - bytes.len())..].copy_from_slice(bytes);
+        Some(U256::from_u8_array(a))
+    }
+
+    /// # Errors
+    ///
+    /// If the number of bytes is greater than the number of bytes in `Self`
     pub fn from_bytes_be(bytes: &[u8]) -> Option<Self> {
         if bytes.len() > 32 {
             return None
@@ -143,6 +155,10 @@ impl U256 {
     /// Significant bits
     pub fn sig_bits(self) -> usize {
         self.bits()
+    }
+
+    pub fn lz(&self) -> usize {
+        self.leading_zeros() as usize
     }
 
     #[must_use]
@@ -166,6 +182,18 @@ impl U256 {
         } else {
             Some(self.div_mod(other))
         }
+    }
+
+    /// Shift left by 1
+    #[must_use]
+    pub fn shl1(self) -> Self {
+        self << 1
+    }
+
+    /// Shift right by 1
+    #[must_use]
+    pub fn shr1(self) -> Self {
+        self >> 1
     }
 
     /// Returns a tuple of `cin + (self * rhs)` and the overflow. The

@@ -18,6 +18,8 @@ jobs:
           rustup default stable
       - name: Run test suite
         run: |
+          cargo bench
+          cargo bench --no-default-features --features=rand_support,serde_support
           cargo test --no-default-features --features=rand_support,serde_support
           cargo test --all-features
           cargo test --release --all-features

@@ -1,4 +1,5 @@
 use u64_array_bigints::U256;
+use u64_array_bigints_macros::u256;
 
 #[test]
 fn serialization_test() {
@@ -45,16 +46,8 @@ fn serialization_test() {
 #[test]
 fn le_be_test() {
     assert_eq!(
-        U256::from_dec_or_hex_str(
-            "0x1234ffffffffffffffffffffffffffffffffffffffffffffffffffffffff5678",
-        )
-        .unwrap()
-        .to_u8_array_be(),
-        U256::from_dec_or_hex_str(
-            "0x7856ffffffffffffffffffffffffffffffffffffffffffffffffffffffff3412",
-        )
-        .unwrap()
-        .to_u8_array()
+        u256!(0x1234ffffffffffffffffffffffffffffffffffffffffffffffffffffffff5678).to_u8_array_be(),
+        u256!(0x7856ffffffffffffffffffffffffffffffffffffffffffffffffffffffff3412).to_u8_array()
     );
     assert_eq!(
         U256::from_bytes_be(&[0xffu8; 32]).unwrap(),

@@ -3,5 +3,5 @@ resolver = "2"
 members = [
     "testcrate",
     "u64_array_bigints",
-    #"u64_array_bigints_macros",
+    "u64_array_bigints_macros",
 ]

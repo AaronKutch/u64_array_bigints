@@ -12,10 +12,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      # need nightly for `cargo bench`
       - name: Install Rust components
         run: |
           rustup set profile minimal
-          rustup default stable
+          rustup default nightly
       - name: Run test suite
         run: |
           cargo bench

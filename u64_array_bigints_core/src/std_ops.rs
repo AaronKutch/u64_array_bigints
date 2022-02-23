@@ -23,6 +23,12 @@ impl<const LEN: usize> Ord for Uint<LEN> {
     }
 }
 
+impl<const LEN: usize> Default for Uint<LEN> {
+    fn default() -> Self {
+        Self::zero()
+    }
+}
+
 impl<const LEN: usize> Not for Uint<LEN> {
     type Output = Self;
 

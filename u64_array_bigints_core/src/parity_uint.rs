@@ -2,7 +2,7 @@
 // shared are reimplemented here
 use crate::{
     const_for,
-    utils::{widen_add, widen_mul_add},
+    utils::{dd_division, widen_add, widen_mul_add},
 };
 
 #[allow(clippy::all)]
@@ -176,7 +176,7 @@ impl U256 {
         self.overflowing_mul(other).0
     }
 
-    pub fn checked_div_rem(self, other: U256) -> Option<(U256, U256)> {
+    pub fn divide(self, other: U256) -> Option<(U256, U256)> {
         if other.is_zero() {
             None
         } else {
@@ -223,6 +223,24 @@ impl U256 {
             res.0[i] = tmp1.0;
         });
         (res, (mul_carry != 0) || (add_carry != 0))
+    }
+
+    /// Returns a tuple of the quotient and remainder of `self` divided by
+    /// `div`. `div` is zero extended. Returns `None` if `div == 0`.
+    pub const fn checked_short_divide(self, div: u64) -> Option<(Self, u64)> {
+        if div == 0 {
+            return None
+        }
+        let mut res = Self::zero();
+        let mut rem = 0;
+        const_for!(i in {0..4}.rev() {
+            let y = self.0[i];
+            // the panic here is avoided by the early return
+            let tmp = dd_division((y, rem), (div, 0));
+            rem = tmp.1.0;
+            res.0[i] = tmp.0.0;
+        });
+        Some((res, rem))
     }
 
     /// Randomly-assigns `self` using a `rand_core::RngCore` random number

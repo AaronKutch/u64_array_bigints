@@ -1,4 +1,4 @@
-use alloc::{borrow::ToOwned, string::String, vec::Vec};
+use alloc::{borrow::ToOwned, string::String, vec, vec::Vec};
 use core::fmt::{self, Display};
 
 #[cfg(feature = "serde_support")]
@@ -217,6 +217,39 @@ impl U256 {
         }
     }
 
+    /// Prefixes not included.
+    ///
+    /// Returns `None` if the `radix` is not valid
+    pub fn to_bytes_radix(self, radix: u8, upper: bool) -> Option<Vec<u8>> {
+        if radix < 2 || radix > 36 {
+            return None
+        }
+        let mut pad = self;
+        let mut dst = vec![];
+        loop {
+            if pad.is_zero() {
+                dst[..].reverse();
+                return Some(dst)
+            }
+            // cannot result in panic or infinite loop because of bounds on `radix`
+            let tmp = pad.checked_short_divide(radix as u64).unwrap();
+            pad = tmp.0;
+            let rem = tmp.1 as u8;
+            if rem < 10 {
+                dst.push(b'0'.wrapping_add(rem));
+            } else if upper {
+                dst.push(b'A'.wrapping_add(rem).wrapping_sub(10));
+            } else {
+                dst.push(b'a'.wrapping_add(rem).wrapping_sub(10));
+            }
+        }
+    }
+
+    pub fn to_dec_string(self) -> String {
+        // Safety: `to_bytes_radix(10, false)` can only output b'0'-b'9'
+        unsafe { String::from_utf8_unchecked(self.to_bytes_radix(10, false).unwrap()) }
+    }
+
     /// Returns `10^exp`, or `None` if overflow occurs
     pub const fn checked_exp10(exp: usize) -> Option<Self> {
         #[cfg(feature = "use_parity_uint")]
@@ -254,6 +287,13 @@ impl U256 {
 impl fmt::LowerHex for U256 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(&self.to_hex_string())
+    }
+}
+
+#[cfg(not(feature = "use_parity_uint"))]
+impl fmt::Display for U256 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.to_dec_string())
     }
 }
 

@@ -352,3 +352,9 @@ impl U256 {
         }
     }
 }
+
+impl Default for U256 {
+    fn default() -> Self {
+        Self::zero()
+    }
+}

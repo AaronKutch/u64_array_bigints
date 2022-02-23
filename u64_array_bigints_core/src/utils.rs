@@ -38,7 +38,6 @@ pub const fn widen_mul_add(x: u64, y: u64, z: u64) -> (u64, u64) {
 ///
 /// If `div == 0`, this function will panic.
 #[inline]
-#[cfg(not(feature = "use_parity_uint"))]
 pub const fn dd_division(duo: (u64, u64), div: (u64, u64)) -> ((u64, u64), (u64, u64)) {
     let duo = duo.0 as u128 | ((duo.1 as u128) << 64);
     let div = div.0 as u128 | ((div.1 as u128) << 64);

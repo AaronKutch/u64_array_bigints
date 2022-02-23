@@ -1,5 +1,4 @@
-use crate::Uint;
-use crate::const_for;
+use crate::{const_for, Uint};
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct U256(pub Uint<4>);
@@ -145,7 +144,8 @@ impl U256 {
         256usize.wrapping_sub(self.lz())
     }
 
-    /// This gives a straight byte slice view into `self`, be aware that it changes on big endian systems
+    /// This gives a straight byte slice view into `self`, be aware that it
+    /// changes on big endian systems
     pub fn as_u8_slice_mut(&mut self) -> &mut [u8; 32] {
         // this will not panic because `[u8; 32]` is the right size
         bytemuck::try_cast_mut(&mut self.0 .0).unwrap()

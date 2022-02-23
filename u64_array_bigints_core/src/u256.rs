@@ -1,18 +1,38 @@
 use crate::Uint;
+use crate::const_for;
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct U256(pub Uint<4>);
 
+// note: u128 has to be handled separately because of endianness changes
+//
 // the unwraps here will not panic if $n is correct
 macro_rules! to_from_array {
     ($($to_fn:ident $from_fn:ident $uX:ident $n:expr);*;) => {
         $(
-            pub fn $from_fn(x: [$uX; $n]) -> Self {
-                Self(Uint(bytemuck::try_cast(x).unwrap()))
+            pub fn $from_fn(mut x: [$uX; $n]) -> Self {
+                const_for!(i in {0..x.len()} {
+                    // on little endian this is a no-op, on big endian this fixes the endianness
+                    x[i] = $uX::from_le(x[i]);
+                });
+                let mut res = Self(Uint(bytemuck::try_cast(x).unwrap()));
+                const_for!(i in {0..res.0.0.len()} {
+                    // I don't care to think about perf on bigendian, I only care about correctness
+                    res.0.0[i] = u64::from_le(res.0.0[i]);
+                });
+                res
             }
 
             pub fn $to_fn(self) -> [$uX; $n] {
-                bytemuck::try_cast(self.0.0).unwrap()
+                let mut tmp = self;
+                const_for!(i in {0..tmp.0.0.len()} {
+                    tmp.0.0[i] = u64::from_le(self.0.0[i]);
+                });
+                let mut x: [$uX; $n] = bytemuck::try_cast(tmp.0.0).unwrap();
+                const_for!(i in {0..x.len()} {
+                    x[i] = $uX::from_le(x[i]);
+                });
+                x
             }
         )*
     };
@@ -125,6 +145,7 @@ impl U256 {
         256usize.wrapping_sub(self.lz())
     }
 
+    /// This gives a straight byte slice view into `self`, be aware that it changes on big endian systems
     pub fn as_u8_slice_mut(&mut self) -> &mut [u8; 32] {
         // this will not panic because `[u8; 32]` is the right size
         bytemuck::try_cast_mut(&mut self.0 .0).unwrap()

@@ -1,3 +1,5 @@
+#![allow(clippy::manual_range_contains)]
+
 use alloc::{borrow::ToOwned, string::String, vec, vec::Vec};
 use core::fmt::{self, Display};
 

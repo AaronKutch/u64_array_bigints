@@ -173,6 +173,11 @@ impl U256 {
         Some(U256::from_u8_array(a))
     }
 
+    pub fn from_u8_array_be(mut x: [u8; 32]) -> Self {
+        x.reverse();
+        Self::from_u8_array(x)
+    }
+
     pub fn to_u8_array_be(self) -> [u8; 32] {
         let mut a = self.to_u8_array();
         a.reverse();

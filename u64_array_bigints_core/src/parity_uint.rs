@@ -13,7 +13,6 @@ mod clippy_guard {
 }
 
 pub use clippy_guard::U256;
-pub use uint::FromStrRadixErr;
 
 // the unwraps here will not panic if $n is correct
 macro_rules! to_from_array {
@@ -161,6 +160,11 @@ impl U256 {
         a[(32 - bytes.len())..].copy_from_slice(bytes);
         a.reverse();
         Some(U256::from_u8_array(a))
+    }
+
+    pub fn from_u8_array_be(mut x: [u8; 32]) -> Self {
+        x.reverse();
+        Self::from_u8_array(x)
     }
 
     pub fn to_u8_array_be(self) -> [u8; 32] {

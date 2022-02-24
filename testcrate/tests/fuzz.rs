@@ -1,5 +1,7 @@
 #![cfg(not(feature = "use_parity_uint"))]
 
+use std::{assert, num::NonZeroUsize};
+
 use awint::{bw, Bits, ExtAwi};
 // See `testcrate` in https://github.com/AaronKutch/awint to see the strategy
 use rand_xoshiro::{
@@ -89,6 +91,13 @@ fn check_eq_awint<const LEN: usize>(awint: &Bits, uint: Uint<LEN>) -> bool {
 }
 */
 
+fn one_run<const LEN: usize>() {
+    let iw = NonZeroUsize::new(Uint::<LEN>::bw()).unwrap();
+    assert_eq_awint(&ExtAwi::zero(iw), Uint::<LEN>::zero());
+    assert_eq_awint(&ExtAwi::umax(iw), Uint::<LEN>::max_value());
+    assert_eq_awint(&ExtAwi::uone(iw), Uint::<LEN>::one());
+}
+
 fn identities_inner<const LEN: usize>(
     rng: &mut Xoshiro128StarStar,
     x0: Uint<LEN>,
@@ -97,27 +106,63 @@ fn identities_inner<const LEN: usize>(
     y1: &Bits,
     y2: &mut Bits,
     y3: &mut Bits,
+    dw: &mut Bits,
 ) {
     let iw = Uint::<LEN>::bw();
     let s0 = (rng.next_u32() as usize) % iw;
     let digit0 = rng.next_u64();
     let digit1 = rng.next_u64();
 
+    assert_eq!(x0.is_zero(), y0.is_zero());
     assert_eq!(x0.lsb(), y0.lsb());
     assert_eq!(x0.msb(), y0.msb());
     assert_eq!(x0.lz(), y0.lz());
     assert_eq!(x0.tz(), y0.tz());
     assert_eq!(x0.count_ones(), y0.count_ones());
 
-    // TODO fill in remaining
+    assert_eq!(x0.const_eq(&x1), y0.const_eq(y1).unwrap());
+    assert_eq!(x0.const_lt(&x1), y0.ult(y1).unwrap());
+    assert_eq!(x0.const_le(&x1), y0.ule(y1).unwrap());
+    assert_eq!(x0.const_gt(&x1), y0.ugt(y1).unwrap());
+    assert_eq!(x0.const_ge(&x1), y0.uge(y1).unwrap());
+
+    y2.copy_assign(y0).unwrap();
+    y2.not_assign();
+    assert_eq_awint(y2, x0.const_not());
+
+    y2.copy_assign(y0).unwrap();
+    y2.or_assign(y1).unwrap();
+    assert_eq_awint(y2, x0.const_or(x1));
+
+    y2.copy_assign(y0).unwrap();
+    y2.and_assign(y1).unwrap();
+    assert_eq_awint(y2, x0.const_and(x1));
 
     y2.copy_assign(y0).unwrap();
     y2.xor_assign(y1).unwrap();
-    assert_eq_awint(y2, x0 ^ x1);
+    assert_eq_awint(y2, x0.const_xor(x1));
 
     y2.copy_assign(y0).unwrap();
     y2.add_assign(y1).unwrap();
     assert_eq_awint(y2, x0.wrapping_add(x1));
+
+    let o = y2.cin_sum_assign(false, y0, y1).unwrap();
+    if let Some(tmp) = x0.checked_add(x1) {
+        assert!(!o.0);
+        assert_eq_awint(y2, tmp);
+    } else {
+        assert!(o.0);
+    }
+
+    y3.copy_assign(y1).unwrap();
+    y3.neg_assign(true);
+    y2.cin_sum_assign(false, y0, y3).unwrap();
+    if let Some(tmp) = x0.checked_sub(x1) {
+        assert!(y0.uge(y1).unwrap());
+        assert_eq_awint(y2, tmp);
+    } else {
+        assert!(y0.ult(y1).unwrap());
+    }
 
     y2.copy_assign(y0).unwrap();
     y2.shl_assign(s0).unwrap();
@@ -146,6 +191,16 @@ fn identities_inner<const LEN: usize>(
     y2.copy_assign(y0).unwrap();
     y2.mul_assign(y1, y3).unwrap();
     assert_eq_awint(y2, x0.wrapping_mul(x1));
+
+    dw.zero_assign();
+    dw.arb_umul_add_assign(y0, y1);
+    let o = y2.zero_resize_assign(dw);
+    if let Some(tmp) = x0.checked_mul(x1) {
+        assert_eq_awint(y2, tmp);
+        assert!(!o);
+    } else {
+        assert!(o);
+    }
 
     if digit0 != 0 {
         y2.copy_assign(y0).unwrap();
@@ -220,6 +275,7 @@ macro_rules! edge_cases {
 }
 
 fn fuzz<const LEN: usize>(iters: u32, seed: u64) {
+    one_run::<LEN>();
     let mut rng = Xoshiro128StarStar::seed_from_u64(seed);
     let iw = LEN * 64;
     let mut x0 = Uint::<LEN>::zero();
@@ -228,6 +284,7 @@ fn fuzz<const LEN: usize>(iters: u32, seed: u64) {
     let mut y1 = y0.clone();
     let mut y2 = y0.clone();
     let mut y3 = y0.clone();
+    let mut dw = ExtAwi::zero(bw(iw.checked_mul(2).unwrap()));
 
     // edge case fuzzing
     #[cfg(not(miri))]
@@ -237,7 +294,7 @@ fn fuzz<const LEN: usize>(iters: u32, seed: u64) {
             edge_cases!(fl, x1, {
                 uint_to_awint(&mut y0, x0);
                 uint_to_awint(&mut y1, x1);
-                identities_inner(&mut rng, x0, x1, &y0, &y1, &mut y2, &mut y3);
+                identities_inner(&mut rng, x0, x1, &y0, &y1, &mut y2, &mut y3, &mut dw);
             })
         });
     }
@@ -248,7 +305,7 @@ fn fuzz<const LEN: usize>(iters: u32, seed: u64) {
         fuzz_step(&mut rng, &mut x1);
         uint_to_awint(&mut y0, x0);
         uint_to_awint(&mut y1, x1);
-        identities_inner(&mut rng, x0, x1, &y0, &y1, &mut y2, &mut y3);
+        identities_inner(&mut rng, x0, x1, &y0, &y1, &mut y2, &mut y3, &mut dw);
     }
 }
 

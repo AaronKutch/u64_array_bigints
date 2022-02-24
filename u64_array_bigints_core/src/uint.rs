@@ -306,6 +306,21 @@ impl<const LEN: usize> Uint<LEN> {
         ones
     }
 
+    /// Returns the number of significant bits
+    pub const fn sig_bits(&self) -> usize {
+        Self::bw() - self.lz()
+    }
+
+    /// Returns the number of significant `u64` digits
+    pub const fn sig_digits(&self) -> usize {
+        const_for!(i in {0..LEN}.rev() {
+            if self.0[i] != 0 {
+                return i + 1;
+            }
+        });
+        0
+    }
+
     /// Equality comparison
     pub const fn const_eq(&self, rhs: &Self) -> bool {
         const_for!(i in {0..LEN} {
@@ -409,20 +424,27 @@ impl<const LEN: usize> Uint<LEN> {
     pub const fn overflowing_mul_add(self, lhs: Self, rhs: Self) -> (Self, bool) {
         let mut res = self;
         let mut o = false;
+        let rhs_sig_digits = rhs.sig_digits();
         const_for!(lhs_i in {0..LEN} {
-            // carry from the short multiplication
-            let mut carry0 = 0;
-            let mut carry1 = 0;
-            const_for!(rhs_i in {0..(LEN - lhs_i)} {
-                let tmp0 =
-                    widen_mul_add(lhs.0[lhs_i], rhs.0[rhs_i], carry0);
-                carry0 = tmp0.1;
-                let tmp1 = widen_add(res.0[lhs_i + rhs_i], tmp0.0, carry1);
-                carry1 = tmp1.1;
-                res.0[lhs_i + rhs_i] = tmp1.0;
-            });
-            o |= carry0 != 0;
-            o |= carry1 != 0;
+            let lhs_digit = lhs.0[lhs_i];
+            if lhs_digit != 0 {
+                // carry from the short multiplication
+                let mut carry0 = 0;
+                let mut carry1 = 0;
+                const_for!(rhs_i in {0..(LEN - lhs_i)} {
+                    let tmp0 =
+                        widen_mul_add(lhs_digit, rhs.0[rhs_i], carry0);
+                    carry0 = tmp0.1;
+                    let tmp1 = widen_add(res.0[lhs_i + rhs_i], tmp0.0, carry1);
+                    carry1 = tmp1.1;
+                    res.0[lhs_i + rhs_i] = tmp1.0;
+                });
+                o |= carry0 != 0;
+                o |= carry1 != 0;
+                // we have to check digits that will not contribute to the bit
+                // values ofthe output, but could contribute to the overflow.
+                o |= (lhs_i + rhs_sig_digits) > LEN;
+            }
         });
         (res, o)
     }

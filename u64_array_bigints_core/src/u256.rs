@@ -57,7 +57,7 @@ macro_rules! try_resize {
     ($($try_resize_fn:ident $resize_fn:ident $uX:ident $n:expr);*;) => {
         $(
             pub const fn $try_resize_fn(self) -> Option<$uX> {
-                if self.lz() > (256 - $n) {
+                if self.sig_bits() > $n {
                     None
                 } else {
                     Some(self.$resize_fn())
@@ -135,12 +135,12 @@ impl U256 {
         Self(Uint::max_value())
     }
 
-    pub fn is_zero(self) -> bool {
+    pub const fn is_zero(self) -> bool {
         self.0.is_zero()
     }
 
     /// Significant bits
-    pub fn sig_bits(self) -> usize {
+    pub const fn sig_bits(self) -> usize {
         256usize.wrapping_sub(self.lz())
     }
 
@@ -251,11 +251,14 @@ impl U256 {
         }
     }
 
-    /// Shift left by 1
+    /// Shift left by 1. Returns `None` if overflow results
     #[must_use]
-    pub const fn shl1(self) -> Self {
+    pub const fn shl1(self) -> Option<Self> {
+        if self.msb() {
+            return None
+        }
         match self.checked_shl(1) {
-            Some(x) => x,
+            Some(x) => Some(x),
             None => unreachable!(),
         }
     }

@@ -66,7 +66,7 @@ macro_rules! try_resize {
     ($($try_resize_fn:ident $resize_fn:ident $uX:ident $n:expr);*;) => {
         $(
             pub fn $try_resize_fn(self) -> Option<$uX> {
-                if self.bits() > $n {
+                if self.sig_bits() > $n {
                     None
                 } else {
                     Some(self.$resize_fn())
@@ -205,10 +205,13 @@ impl U256 {
         }
     }
 
-    /// Shift left by 1
+    /// Shift left by 1. Returns `None` if overflow results
     #[must_use]
-    pub fn shl1(self) -> Self {
-        self << 1
+    pub fn shl1(self) -> Option<Self> {
+        if self.bits() > 255 {
+            return None
+        }
+        Some(self << 1)
     }
 
     /// Shift right by 1

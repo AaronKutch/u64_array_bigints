@@ -1,27 +1,8 @@
-[package]
-name = "u64_array_bigints"
-version = "0.1.0"
-edition = "2021"
-authors = ["Aaron Kutch <aaronkutch@att.net>"]
-license = "MIT OR Apache-2.0"
-readme = "README.md"
-repository = "https://github.com/AaronKutch/u64_array_bigints"
-documentation = "https://docs.rs/u64_array_bigints"
-description = "Simple biginteger library based on u64 arrays"
-keywords = ["bigint", "no_std"]
-categories = ["data-structures", "no-std"]
-
-[dependencies]
-bytemuck = "1.7"
-serde = { version = "1.0", optional = true }
-uint = { version = "0.9", default-features = false, optional = true }
-
-[dev-dependencies]
-awint = "0.2"
-rand = "0.8"
-rand_xoshiro = "0.6"
-
-[features]
-default = ["serde_support", "use_parity_uint"]
-serde_support = ["serde"]
-use_parity_uint = ["uint"]
+[workspace]
+resolver = "2"
+members = [
+    "testcrate",
+    "u64_array_bigints",
+    "u64_array_bigints_core",
+    "u64_array_bigints_macros",
+]

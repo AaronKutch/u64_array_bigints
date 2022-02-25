@@ -2,9 +2,16 @@ use core::num::NonZeroUsize;
 
 use crate::{
     const_for,
-    utils::{dd_division, digits_u, extra_u, widen_add, widen_mul_add, BITS},
+    utils::{
+        assert_uint_invariants, dd_division, digits_u, extra_u, widen_add, widen_mul_add, BITS,
+    },
 };
 
+/// Note: `LEN` must satisfy `LEN > 0` and `LEN.checked_mul(64usize).is_some()`.
+/// The construction functions and some downstream functions check for these
+/// invariants. Users should preferrably use `from_u64_array` instead of direct
+/// tuple struct construction of the `Uint`, because the invariants are checked
+/// automatically by `from_u64_array`.
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct Uint<const LEN: usize>(pub [u64; LEN]);
 
@@ -16,22 +23,22 @@ pub struct Uint<const LEN: usize>(pub [u64; LEN]);
 
 /// These functions directly correspond to the Rust standard unsigned integers.
 impl<const LEN: usize> Uint<LEN> {
+    pub const fn from_u64_array(x: [u64; LEN]) -> Self {
+        assert_uint_invariants::<LEN>();
+        Self(x)
+    }
+
+    pub const fn to_u64_array(self) -> [u64; LEN] {
+        self.0
+    }
+
     pub const fn zero() -> Self {
-        // can't use `const_assert` because of E0401, but is trivially eliminated by
-        // compiler
-        assert!(LEN > 0);
-        // the array should automatically prevent this, but just to be explicit
-        assert!(LEN < (isize::MAX as usize));
-        // this guarantees that functions related to the bitwidth cannot have problems
-        let (tmp, o) = LEN.overflowing_mul(BITS);
-        assert!(!o);
-        assert!(tmp < (isize::MAX as usize));
+        assert_uint_invariants::<LEN>();
         Self([0; LEN])
     }
 
     pub const fn max_value() -> Self {
-        assert!(LEN > 0);
-        assert!(LEN < (isize::MAX as usize));
+        assert_uint_invariants::<LEN>();
         Self([u64::MAX; LEN])
     }
 
@@ -156,6 +163,7 @@ impl<const LEN: usize> Uint<LEN> {
     }
 
     pub const fn checked_shl(self, s: usize) -> Option<Self> {
+        assert_uint_invariants::<LEN>();
         match NonZeroUsize::new(s) {
             None => Some(self),
             Some(s) if s.get() < Self::bw() => {
@@ -192,6 +200,7 @@ impl<const LEN: usize> Uint<LEN> {
     }
 
     pub const fn checked_shr(self, s: usize) -> Option<Self> {
+        assert_uint_invariants::<LEN>();
         match NonZeroUsize::new(s) {
             None => Some(self),
             Some(s) if s.get() < Self::bw() => {
@@ -242,40 +251,34 @@ impl<const LEN: usize> Uint<LEN> {
             )
         }
     }
-
-    // TODO replace
-    #[doc(hidden)]
-    pub fn debug_hex(self) -> alloc::string::String {
-        let mut s = alloc::string::String::new();
-        for i in (0..LEN).rev() {
-            s += &alloc::format!("_{:x}_{:x}", (self.0[i] >> 32) as u32, self.0[i] as u32);
-        }
-        s
-    }
 }
 
 /// special functions
 impl<const LEN: usize> Uint<LEN> {
     /// Returns the bitwidth of `Self`
     pub const fn bw() -> usize {
-        // Note: this cannot overflow because of the guard in the creation functions
+        assert_uint_invariants::<LEN>();
+        // Note: this cannot overflow because of the guard
         LEN.wrapping_mul(BITS)
     }
 
     /// Returns the least significant bit
     #[inline]
     pub const fn lsb(&self) -> bool {
+        assert_uint_invariants::<LEN>();
         (self.0[0] & 1) != 0
     }
 
     /// Returns the most significant bit
     #[inline]
     pub const fn msb(&self) -> bool {
+        assert_uint_invariants::<LEN>();
         (self.0[LEN - 1] as isize) < 0
     }
 
     /// Returns the number of leading zero bits
     pub const fn lz(&self) -> usize {
+        assert_uint_invariants::<LEN>();
         const_for!(i in {0..LEN}.rev() {
             let x = self.0[i];
             if x != 0 {
@@ -287,6 +290,7 @@ impl<const LEN: usize> Uint<LEN> {
 
     /// Returns the number of trailing zero bits
     pub const fn tz(&self) -> usize {
+        assert_uint_invariants::<LEN>();
         const_for!(i in {0..LEN} {
             let x = self.0[i];
             if x != 0 {
@@ -298,12 +302,29 @@ impl<const LEN: usize> Uint<LEN> {
 
     /// Returns the number of set ones
     pub const fn count_ones(&self) -> usize {
+        assert_uint_invariants::<LEN>();
         let mut ones = 0;
         const_for!(i in {0..LEN} {
             let x = self.0[i];
             ones += x.count_ones() as usize;
         });
         ones
+    }
+
+    /// Returns the number of significant bits
+    pub const fn sig_bits(&self) -> usize {
+        assert_uint_invariants::<LEN>();
+        Self::bw() - self.lz()
+    }
+
+    /// Returns the number of significant `u64` digits
+    pub const fn sig_digits(&self) -> usize {
+        const_for!(i in {0..LEN}.rev() {
+            if self.0[i] != 0 {
+                return i + 1;
+            }
+        });
+        0
     }
 
     /// Equality comparison
@@ -350,10 +371,12 @@ impl<const LEN: usize> Uint<LEN> {
     }
 
     pub const fn resize_to_u64(&self) -> u64 {
+        assert_uint_invariants::<LEN>();
         self.0[0]
     }
 
     pub const fn from_u64(x: u64) -> Self {
+        assert_uint_invariants::<LEN>();
         let mut res = Self::zero();
         res.0[0] = x;
         res
@@ -409,20 +432,27 @@ impl<const LEN: usize> Uint<LEN> {
     pub const fn overflowing_mul_add(self, lhs: Self, rhs: Self) -> (Self, bool) {
         let mut res = self;
         let mut o = false;
+        let rhs_sig_digits = rhs.sig_digits();
         const_for!(lhs_i in {0..LEN} {
-            // carry from the short multiplication
-            let mut carry0 = 0;
-            let mut carry1 = 0;
-            const_for!(rhs_i in {0..(LEN - lhs_i)} {
-                let tmp0 =
-                    widen_mul_add(lhs.0[lhs_i], rhs.0[rhs_i], carry0);
-                carry0 = tmp0.1;
-                let tmp1 = widen_add(res.0[lhs_i + rhs_i], tmp0.0, carry1);
-                carry1 = tmp1.1;
-                res.0[lhs_i + rhs_i] = tmp1.0;
-            });
-            o |= carry0 != 0;
-            o |= carry1 != 0;
+            let lhs_digit = lhs.0[lhs_i];
+            if lhs_digit != 0 {
+                // carry from the short multiplication
+                let mut carry0 = 0;
+                let mut carry1 = 0;
+                const_for!(rhs_i in {0..(LEN - lhs_i)} {
+                    let tmp0 =
+                        widen_mul_add(lhs_digit, rhs.0[rhs_i], carry0);
+                    carry0 = tmp0.1;
+                    let tmp1 = widen_add(res.0[lhs_i + rhs_i], tmp0.0, carry1);
+                    carry1 = tmp1.1;
+                    res.0[lhs_i + rhs_i] = tmp1.0;
+                });
+                o |= carry0 != 0;
+                o |= carry1 != 0;
+                // we have to check digits that will not contribute to the bit
+                // values ofthe output, but could contribute to the overflow.
+                o |= (lhs_i + rhs_sig_digits) > LEN;
+            }
         });
         (res, o)
     }
@@ -714,5 +744,19 @@ impl<const LEN: usize> Uint<LEN> {
                 return Some((quo, rem))
             }
         }
+    }
+
+    /// Randomly-assigns `self` using a `rand_core::RngCore` random number
+    /// generator
+    #[cfg(feature = "rand_support")]
+    pub fn rand_using<R>(rng: &mut R) -> Self
+    where
+        R: rand_core::RngCore,
+    {
+        let mut res = Self::zero();
+        for i in 0..LEN {
+            res.0[i] = rng.next_u64();
+        }
+        res
     }
 }

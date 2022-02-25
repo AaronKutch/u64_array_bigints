@@ -1,0 +1,18 @@
+[package]
+name = "u64_array_bigints_macros"
+version = "0.2.0"
+edition = "2021"
+authors = ["Aaron Kutch <aaronkutch@att.net>"]
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/AaronKutch/u64_array_bigints"
+documentation = "https://docs.rs/u64_array_bigints"
+description = "Macro library for `u64_array_bigints`"
+keywords = ["bigint", "no_std"]
+categories = ["data-structures", "no-std"]
+
+[lib]
+proc-macro = true
+
+[dependencies]
+u64_array_bigints_core = { version = "0.2.0", path = "../u64_array_bigints_core", default-features = false }

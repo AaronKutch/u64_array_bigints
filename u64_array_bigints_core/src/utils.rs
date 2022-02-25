@@ -1,5 +1,18 @@
 pub const BITS: usize = 64;
 
+/// This prevents problems with certain bitwise counting operations and large
+/// `LEN` that would cause `LEN * BITS` to overflow. This is also called with
+/// functions that need `LEN > 0` and aren't guarded implicitly.
+pub const fn assert_uint_invariants<const LEN: usize>() {
+    // can't use `const_assert` because of E0401, but is trivially eliminated by
+    // compiler
+    assert!(LEN > 0);
+    // this guarantees that functions related to the bitwidth cannot have problems
+    let (tmp, o) = LEN.overflowing_mul(BITS);
+    assert!(!o);
+    assert!(tmp < (isize::MAX as usize));
+}
+
 /// Returns the number of extra bits given `bw`
 #[inline]
 pub const fn extra_u(bw: usize) -> usize {

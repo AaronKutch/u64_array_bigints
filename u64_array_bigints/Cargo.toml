@@ -16,7 +16,7 @@ u64_array_bigints_core = { version = "0.1.0", path = "../u64_array_bigints_core"
 u64_array_bigints_macros = { version = "0.1.0", path = "../u64_array_bigints_macros", default-features = false }
 
 [features]
-default = ["rand_support", "serde_support", "use_parity_uint"]
+default = ["rand_support", "serde_support"]
 rand_support = ["u64_array_bigints_core/rand_support"]
 serde_support = ["u64_array_bigints_core/serde_support"]
 use_parity_uint = ["u64_array_bigints_core/use_parity_uint"]

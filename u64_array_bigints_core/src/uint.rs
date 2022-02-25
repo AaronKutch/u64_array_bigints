@@ -2,9 +2,16 @@ use core::num::NonZeroUsize;
 
 use crate::{
     const_for,
-    utils::{dd_division, digits_u, extra_u, widen_add, widen_mul_add, BITS},
+    utils::{
+        assert_uint_invariants, dd_division, digits_u, extra_u, widen_add, widen_mul_add, BITS,
+    },
 };
 
+/// Note: `LEN` must satisfy `LEN > 0` and `LEN.checked_mul(64usize).is_some()`.
+/// The construction functions and some downstream functions check for these
+/// invariants. Users should preferrably use `from_u64_array` instead of direct
+/// tuple struct construction of the `Uint`, because the invariants are checked
+/// automatically by `from_u64_array`.
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct Uint<const LEN: usize>(pub [u64; LEN]);
 
@@ -16,22 +23,22 @@ pub struct Uint<const LEN: usize>(pub [u64; LEN]);
 
 /// These functions directly correspond to the Rust standard unsigned integers.
 impl<const LEN: usize> Uint<LEN> {
+    pub const fn from_u64_array(x: [u64; LEN]) -> Self {
+        assert_uint_invariants::<LEN>();
+        Self(x)
+    }
+
+    pub const fn to_u64_array(self) -> [u64; LEN] {
+        self.0
+    }
+
     pub const fn zero() -> Self {
-        // can't use `const_assert` because of E0401, but is trivially eliminated by
-        // compiler
-        assert!(LEN > 0);
-        // the array should automatically prevent this, but just to be explicit
-        assert!(LEN < (isize::MAX as usize));
-        // this guarantees that functions related to the bitwidth cannot have problems
-        let (tmp, o) = LEN.overflowing_mul(BITS);
-        assert!(!o);
-        assert!(tmp < (isize::MAX as usize));
+        assert_uint_invariants::<LEN>();
         Self([0; LEN])
     }
 
     pub const fn max_value() -> Self {
-        assert!(LEN > 0);
-        assert!(LEN < (isize::MAX as usize));
+        assert_uint_invariants::<LEN>();
         Self([u64::MAX; LEN])
     }
 
@@ -156,6 +163,7 @@ impl<const LEN: usize> Uint<LEN> {
     }
 
     pub const fn checked_shl(self, s: usize) -> Option<Self> {
+        assert_uint_invariants::<LEN>();
         match NonZeroUsize::new(s) {
             None => Some(self),
             Some(s) if s.get() < Self::bw() => {
@@ -192,6 +200,7 @@ impl<const LEN: usize> Uint<LEN> {
     }
 
     pub const fn checked_shr(self, s: usize) -> Option<Self> {
+        assert_uint_invariants::<LEN>();
         match NonZeroUsize::new(s) {
             None => Some(self),
             Some(s) if s.get() < Self::bw() => {
@@ -258,24 +267,28 @@ impl<const LEN: usize> Uint<LEN> {
 impl<const LEN: usize> Uint<LEN> {
     /// Returns the bitwidth of `Self`
     pub const fn bw() -> usize {
-        // Note: this cannot overflow because of the guard in the creation functions
+        assert_uint_invariants::<LEN>();
+        // Note: this cannot overflow because of the guard
         LEN.wrapping_mul(BITS)
     }
 
     /// Returns the least significant bit
     #[inline]
     pub const fn lsb(&self) -> bool {
+        assert_uint_invariants::<LEN>();
         (self.0[0] & 1) != 0
     }
 
     /// Returns the most significant bit
     #[inline]
     pub const fn msb(&self) -> bool {
+        assert_uint_invariants::<LEN>();
         (self.0[LEN - 1] as isize) < 0
     }
 
     /// Returns the number of leading zero bits
     pub const fn lz(&self) -> usize {
+        assert_uint_invariants::<LEN>();
         const_for!(i in {0..LEN}.rev() {
             let x = self.0[i];
             if x != 0 {
@@ -287,6 +300,7 @@ impl<const LEN: usize> Uint<LEN> {
 
     /// Returns the number of trailing zero bits
     pub const fn tz(&self) -> usize {
+        assert_uint_invariants::<LEN>();
         const_for!(i in {0..LEN} {
             let x = self.0[i];
             if x != 0 {
@@ -298,6 +312,7 @@ impl<const LEN: usize> Uint<LEN> {
 
     /// Returns the number of set ones
     pub const fn count_ones(&self) -> usize {
+        assert_uint_invariants::<LEN>();
         let mut ones = 0;
         const_for!(i in {0..LEN} {
             let x = self.0[i];
@@ -308,6 +323,7 @@ impl<const LEN: usize> Uint<LEN> {
 
     /// Returns the number of significant bits
     pub const fn sig_bits(&self) -> usize {
+        assert_uint_invariants::<LEN>();
         Self::bw() - self.lz()
     }
 
@@ -365,10 +381,12 @@ impl<const LEN: usize> Uint<LEN> {
     }
 
     pub const fn resize_to_u64(&self) -> u64 {
+        assert_uint_invariants::<LEN>();
         self.0[0]
     }
 
     pub const fn from_u64(x: u64) -> Self {
+        assert_uint_invariants::<LEN>();
         let mut res = Self::zero();
         res.0[0] = x;
         res

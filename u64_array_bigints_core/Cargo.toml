@@ -27,7 +27,7 @@ rand_xoshiro = { version = "0.6", default-features = false }
 u64_array_bigints = { path = "../u64_array_bigints", default-features = false }
 
 [features]
-default = ["rand_support", "serde_support", "use_parity_uint"]
+default = ["rand_support", "serde_support"]
 rand_support = ["rand_core"]
 serde_support = ["serde"]
 use_parity_uint = ["uint"]

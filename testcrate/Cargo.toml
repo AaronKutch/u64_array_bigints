@@ -10,5 +10,4 @@ rand_xoshiro = { version = "0.6", default-features = false }
 u64_array_bigints = { path = "../u64_array_bigints", default-features = false, features = ["rand_support", "serde_support"] }
 
 [features]
-default = ["use_parity_uint"]
 use_parity_uint = ["u64_array_bigints/use_parity_uint"]

@@ -97,7 +97,7 @@ impl U256 {
     // yet, so even if we went away from `bytemuck` we could not fix it performantly
 
     pub const fn from_u64_array(x: [u64; 4]) -> Self {
-        Self(Uint(x))
+        Self(Uint::from_u64_array(x))
     }
 
     pub const fn to_u64_array(self) -> [u64; 4] {
@@ -262,7 +262,7 @@ impl U256 {
         }
     }
 
-    /// Shift left by 1. Returns `None` if overflow results
+    /// Shift left by 1. Returns `None` if numerical overflow results
     #[must_use]
     pub const fn shl1(self) -> Option<Self> {
         if self.msb() {

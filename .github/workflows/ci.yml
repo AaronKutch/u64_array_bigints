@@ -19,11 +19,11 @@ jobs:
           rustup default nightly
       - name: Run test suite
         run: |
-          cargo bench
           cargo bench --no-default-features --features=rand_support,serde_support
+          cargo bench --all-features
           cargo test --no-default-features --features=rand_support,serde_support
           cargo test --all-features
-          cargo test --release --all-features
+          cargo test --release
 
   miri:
     name: Miri
@@ -37,8 +37,8 @@ jobs:
           rustup component add miri
       - name: Run test suite with Miri
         run: |
-          cargo miri test --no-default-features
-          cargo miri test
+          cargo miri test --no-default-features --features=rand_support,serde_support
+          cargo miri test --all-features
 
   rustfmt:
     name: Rustfmt
@@ -68,4 +68,5 @@ jobs:
           rustup component add clippy
       - name: Run `cargo clippy`
         run: |
+          cargo clippy --all --all-targets --no-default-features -- -D clippy::all
           cargo clippy --all --all-targets --all-features -- -D clippy::all

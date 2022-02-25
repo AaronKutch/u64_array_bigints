@@ -1,4 +1,4 @@
-use u64_array_bigints::{u256, U256};
+use u64_array_bigints::{u256, Uint, U256};
 
 #[test]
 fn serialization_test() {
@@ -78,4 +78,10 @@ fn to_hex_string() {
         .to_hex_string(),
         "0x13375ca1ab1e13370f1e2d3c4b5a6978fdecba98765432100123456789abcedf"
     );
+}
+
+#[test]
+#[should_panic]
+fn len_0() {
+    let _ = Uint::<0>::from_u64_array([]);
 }

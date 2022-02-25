@@ -2,7 +2,6 @@ pub const BITS: usize = 64;
 
 /// Returns the number of extra bits given `bw`
 #[inline]
-#[cfg(not(feature = "use_parity_uint"))]
 pub const fn extra_u(bw: usize) -> usize {
     bw & (BITS - 1)
 }
@@ -10,7 +9,6 @@ pub const fn extra_u(bw: usize) -> usize {
 /// Returns the number of _whole_ digits (not including a digit with unused
 /// bits) given `bw`
 #[inline]
-#[cfg(not(feature = "use_parity_uint"))]
 pub const fn digits_u(bw: usize) -> usize {
     bw.wrapping_shr(BITS.trailing_zeros())
 }

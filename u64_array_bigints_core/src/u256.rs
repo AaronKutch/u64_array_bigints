@@ -1,3 +1,5 @@
+use core::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not};
+
 use crate::{const_for, Uint};
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -151,6 +153,12 @@ impl U256 {
         bytemuck::try_cast_mut(&mut self.0 .0).unwrap()
     }
 
+    /// Note: this is an identity:
+    /// `U256::from_bytes(&x0.to_u8_array()[..(32 - (x0.lz() / 8))]).unwrap()`
+    ///
+    /// # Errors
+    ///
+    /// If the number of bytes is greater than the number of bytes in `Self`
     pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
         if bytes.len() > 32 {
             return None
@@ -160,6 +168,9 @@ impl U256 {
         Some(U256::from_u8_array(a))
     }
 
+    /// Note: this is an identity:
+    /// `U256::from_bytes_be(&x0.to_u8_array_be()[(x0.lz() / 8)..]).unwrap()`
+    ///
     /// # Errors
     ///
     /// If the number of bytes is greater than the number of bytes in `Self`
@@ -269,6 +280,13 @@ impl U256 {
         match self.checked_shr(1) {
             Some(x) => x,
             None => unreachable!(),
+        }
+    }
+
+    pub const fn checked_rotl(self, s: usize) -> Option<Self> {
+        match self.0.checked_rotl(s) {
+            Some(x) => Some(Self(x)),
+            None => None,
         }
     }
 
@@ -385,5 +403,55 @@ impl U256 {
 impl Default for U256 {
     fn default() -> Self {
         Self::zero()
+    }
+}
+
+impl Not for U256 {
+    type Output = Self;
+
+    fn not(self) -> Self::Output {
+        Self(self.0.const_not())
+    }
+}
+
+impl BitOr for U256 {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        Self(self.0.const_or(rhs.0))
+    }
+}
+
+impl BitAnd for U256 {
+    type Output = Self;
+
+    fn bitand(self, rhs: Self) -> Self::Output {
+        Self(self.0.const_and(rhs.0))
+    }
+}
+
+impl BitXor for U256 {
+    type Output = Self;
+
+    fn bitxor(self, rhs: Self) -> Self::Output {
+        Self(self.0.const_xor(rhs.0))
+    }
+}
+
+impl BitOrAssign for U256 {
+    fn bitor_assign(&mut self, rhs: Self) {
+        *self = Self(self.0.const_or(rhs.0));
+    }
+}
+
+impl BitAndAssign for U256 {
+    fn bitand_assign(&mut self, rhs: Self) {
+        *self = Self(self.0.const_and(rhs.0));
+    }
+}
+
+impl BitXorAssign for U256 {
+    fn bitxor_assign(&mut self, rhs: Self) {
+        *self = Self(self.0.const_xor(rhs.0));
     }
 }

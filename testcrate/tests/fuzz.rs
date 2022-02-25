@@ -1,95 +1,14 @@
-#![cfg(not(feature = "use_parity_uint"))]
-
 use std::{assert, num::NonZeroUsize};
 
 use awint::{bw, Bits, ExtAwi};
-// See `testcrate` in https://github.com/AaronKutch/awint to see the strategy
 use rand_xoshiro::{
     rand_core::{RngCore, SeedableRng},
     Xoshiro128StarStar,
 };
+use testcrate::*;
 use u64_array_bigints::Uint;
 
-const N: u32 = if cfg!(miri) {
-    32
-} else if cfg!(debug_assertions) {
-    10_000
-} else {
-    1_000_000
-};
-
-/// Panics if `usize::BITS != 64` or `awint.bw() != Uint::<LEN>::bw()`
-fn uint_to_awint<const LEN: usize>(awint: &mut Bits, uint: Uint<LEN>) {
-    if usize::BITS != 64 {
-        // this could be fixed if the need arises
-        panic!("testing only supported on 64 bit architectures");
-    }
-    if awint.bw() != Uint::<LEN>::bw() {
-        panic!("bitwidth mismatch");
-    }
-    // should optimize ok
-    let mut x: [usize; LEN] = [0; LEN];
-    for i in 0..LEN {
-        x[i] = uint.0[i] as usize;
-    }
-    awint.as_mut_slice().copy_from_slice(&x);
-}
-
-/*
-/// Panics if `usize::BITS != 64` or `awint.bw() != Uint::<LEN>::bw()`
-fn awint_to_uint<const LEN: usize>(awint: &Bits) -> Uint<LEN> {
-    if usize::BITS != 64 {
-        // this could be fixed if the need arises
-        panic!("testing only supported on 64 bit architectures");
-    }
-    if awint.bw() != Uint::<LEN>::bw() {
-        panic!("bitwidth mismatch");
-    }
-    let mut x: [usize; LEN] = [0; LEN];
-    x.copy_from_slice(&awint.as_slice());
-    let mut res = Uint::zero();
-    for i in 0..LEN {
-        res.0[i] = x[i] as u64;
-    }
-    res
-}
-*/
-
-/// Panics if the bitwidths or bitvalues of `awint` do not equal that of `uint`
-#[track_caller]
-fn assert_eq_awint<const LEN: usize>(awint: &Bits, uint: Uint<LEN>) {
-    if usize::BITS != 64 {
-        // this could be fixed if the need arises
-        panic!("testing only supported on 64 bit architectures");
-    }
-    if awint.bw() != Uint::<LEN>::bw() {
-        panic!("bitwidth mismatch");
-    }
-    for i in 0..LEN {
-        if (awint.as_slice()[i] as u64) != uint.0[i] {
-            panic!("awint {:?} is not equal to uint {:?}", awint, uint);
-        }
-    }
-}
-
-/*
-// for debugging
-fn check_eq_awint<const LEN: usize>(awint: &Bits, uint: Uint<LEN>) -> bool {
-    if usize::BITS != 64 {
-        // this could be fixed if the need arises
-        panic!("testing only supported on 64 bit architectures");
-    }
-    if awint.bw() != Uint::<LEN>::bw() {
-        panic!("bitwidth mismatch");
-    }
-    for i in 0..LEN {
-        if (awint.as_slice()[i] as u64) != uint.0[i] {
-            return false
-        }
-    }
-    true
-}
-*/
+// See `testcrate` in https://github.com/AaronKutch/awint to see the strategy used here
 
 fn one_run<const LEN: usize>() {
     let iw = NonZeroUsize::new(Uint::<LEN>::bw()).unwrap();
@@ -98,6 +17,7 @@ fn one_run<const LEN: usize>() {
     assert_eq_awint(&ExtAwi::uone(iw), Uint::<LEN>::one());
 }
 
+#[allow(clippy::too_many_arguments)]
 fn identities_inner<const LEN: usize>(
     rng: &mut Xoshiro128StarStar,
     x0: Uint<LEN>,
@@ -219,59 +139,6 @@ fn identities_inner<const LEN: usize>(
         assert_eq_awint(y2, quo);
         assert_eq_awint(y3, rem);
     }
-}
-
-fn fuzz_step<const LEN: usize>(rng: &mut Xoshiro128StarStar, x: &mut Uint<LEN>) {
-    let r0 = (rng.next_u32() as usize) % Uint::<LEN>::bw();
-    let r1 = (rng.next_u32() as usize) % Uint::<LEN>::bw();
-    let tmp = Uint::max_value()
-        .checked_shl(r0)
-        .unwrap()
-        .checked_rotl(r1)
-        .unwrap();
-    match rng.next_u32() % 4 {
-        0 => *x |= tmp,
-        1 => *x &= tmp,
-        _ => *x ^= tmp,
-    }
-}
-
-#[cfg(not(miri))]
-fn fuzz_lengths(bw: usize) -> Vec<usize> {
-    if bw < 4 {
-        return (0..bw).collect()
-    }
-    let mut v = vec![0, 1];
-    let mut x = 8;
-    while x < (bw / 2) {
-        v.push(x - 1);
-        v.push(x);
-        x *= 2;
-    }
-    while x < (bw - 2) {
-        v.push(x - 1);
-        v.push(x);
-        x = x + (x / 2);
-    }
-    // crucial for `imin` cases
-    v.push(bw - 2);
-    v.push(bw - 1);
-    v
-}
-
-#[cfg(not(miri))]
-macro_rules! edge_cases {
-    ($fuzz_lengths:ident, $x:ident, $inner:block) => {
-        for i0 in 0..$fuzz_lengths.len() {
-            $x = Uint::max_value().checked_shr($fuzz_lengths[i0]).unwrap();
-            for i1 in i0..$fuzz_lengths.len() {
-                $x &= Uint::<LEN>::max_value()
-                    .checked_shl($fuzz_lengths[i1 - i0])
-                    .unwrap();
-                $inner
-            }
-        }
-    };
 }
 
 fn fuzz<const LEN: usize>(iters: u32, seed: u64) {

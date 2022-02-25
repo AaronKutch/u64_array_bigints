@@ -105,21 +105,6 @@ impl U256 {
         Self::from_bytes_radix(src.as_bytes(), radix)
     }
 
-    /// Returns `src` parsed as a decimal representation. This function is
-    /// intended for constants and literals, and not fallible conversions.
-    ///
-    /// # Panics
-    ///
-    /// if `from_str_radix(src, 10).is_err()`
-    #[track_caller]
-    pub const fn from_dec_str_panicking(src: &str) -> Self {
-        match Self::from_bytes_radix(src.as_bytes(), 10) {
-            Ok(x) => x,
-            // we run into const stabilization issues if we try to print the message
-            Err(_) => panic!("`from_dec_str_panicking` panicked"),
-        }
-    }
-
     /// Uses radix 16 if `src` has a leading `0x`, otherwise uses radix 10
     ///
     /// The `uint` implementation of `FromStr` is unsuitable because it is
@@ -219,7 +204,7 @@ impl U256 {
         }
     }
 
-    /// Prefixes not included.
+    /// Prefixes not included. Note: if `self.is_zero`, the `Vec` is empty.
     ///
     /// Returns `None` if the `radix` is not valid
     pub fn to_bytes_radix(self, radix: u8, upper: bool) -> Option<Vec<u8>> {
@@ -248,6 +233,9 @@ impl U256 {
     }
 
     pub fn to_dec_string(self) -> String {
+        if self.is_zero() {
+            return "0".to_owned()
+        }
         // Safety: `to_bytes_radix(10, false)` can only output b'0'-b'9'
         unsafe { String::from_utf8_unchecked(self.to_bytes_radix(10, false).unwrap()) }
     }

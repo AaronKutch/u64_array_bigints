@@ -1,3 +1,5 @@
+use core::ops::{BitAndAssign, BitOrAssign, BitXorAssign};
+
 // `serial.rs` is shared with this implementation, functions that could not be
 // shared are reimplemented here
 use crate::{
@@ -145,7 +147,7 @@ impl U256 {
             return None
         }
         let mut a = [0u8; 32];
-        a[(32 - bytes.len())..].copy_from_slice(bytes);
+        a[..bytes.len()].copy_from_slice(bytes);
         Some(U256::from_u8_array(a))
     }
 
@@ -195,6 +197,50 @@ impl U256 {
     #[must_use]
     pub fn wrapping_mul(self, other: U256) -> U256 {
         self.overflowing_mul(other).0
+    }
+
+    #[must_use]
+    pub fn wrapping_shl(self, s: usize) -> U256 {
+        if s >= 256 {
+            panic!("shifted left by >= 256")
+        } else {
+            self << s
+        }
+    }
+
+    #[must_use]
+    pub fn wrapping_shr(self, s: usize) -> U256 {
+        if s >= 256 {
+            panic!("shifted right by >= 256")
+        } else {
+            self >> s
+        }
+    }
+
+    pub fn checked_shl(self, s: usize) -> Option<U256> {
+        if s >= 256 {
+            None
+        } else {
+            Some(self << s)
+        }
+    }
+
+    pub fn checked_shr(self, s: usize) -> Option<U256> {
+        if s >= 256 {
+            None
+        } else {
+            Some(self >> s)
+        }
+    }
+
+    pub fn checked_rotl(self, s: usize) -> Option<U256> {
+        if s >= 256 {
+            None
+        } else if s == 0 {
+            Some(self)
+        } else {
+            Some(self.wrapping_shl(s) | self.wrapping_shr(256 - s))
+        }
     }
 
     pub fn divide(self, other: U256) -> Option<(U256, U256)> {
@@ -297,5 +343,23 @@ impl U256 {
             res.0[i] = rng.next_u64();
         }
         res
+    }
+}
+
+impl BitOrAssign for U256 {
+    fn bitor_assign(&mut self, rhs: Self) {
+        *self = *self | rhs;
+    }
+}
+
+impl BitAndAssign for U256 {
+    fn bitand_assign(&mut self, rhs: Self) {
+        *self = *self & rhs;
+    }
+}
+
+impl BitXorAssign for U256 {
+    fn bitxor_assign(&mut self, rhs: Self) {
+        *self = *self ^ rhs;
     }
 }

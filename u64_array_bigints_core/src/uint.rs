@@ -251,16 +251,6 @@ impl<const LEN: usize> Uint<LEN> {
             )
         }
     }
-
-    // TODO replace
-    #[doc(hidden)]
-    pub fn debug_hex(self) -> alloc::string::String {
-        let mut s = alloc::string::String::new();
-        for i in (0..LEN).rev() {
-            s += &alloc::format!("_{:x}_{:x}", (self.0[i] >> 32) as u32, self.0[i] as u32);
-        }
-        s
-    }
 }
 
 /// special functions

@@ -1,6 +1,6 @@
 [package]
 name = "u64_array_bigints_core"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["Aaron Kutch <aaronkutch@att.net>"]
 license = "MIT OR Apache-2.0"
@@ -10,9 +10,6 @@ documentation = "https://docs.rs/u64_array_bigints"
 description = "Core library for `u64_array_bigints`"
 keywords = ["bigint", "no_std"]
 categories = ["data-structures", "no-std"]
-
-# This crate only exists separate from `u64_array_bigints` because we want to export the macros
-# from the main crate without a lot of code duplication or cyclic references
 
 [dependencies]
 bytemuck = { version = "1.7", default-features = false }

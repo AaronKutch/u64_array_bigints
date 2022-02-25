@@ -1,3 +1,8 @@
+//! This crate only exists separate from `u64_array_bigints` because we want to
+//! export the macros from `u64_array_bigints_macros` from the main crate
+//! without a lot of code duplication or cyclic references. Most users should
+//! just use the main `u64_array_bigints` crate in their `Cargo.toml`.
+
 #![no_std]
 
 extern crate alloc;

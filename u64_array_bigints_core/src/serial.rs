@@ -123,9 +123,17 @@ impl U256 {
         }
     }
 
-    pub fn to_hex_string(self) -> String {
+    /// This function is intended for formatting intermediates that use stack
+    /// buffers.
+    ///
+    /// Assigns a hex representation of `self` to `buf[index..]` (cast as a byte
+    /// array with `bytemuck`) and returns the `index`. No prefix or minimum
+    /// "0" are set (returns 64 if `self.is_zero()`). Also, bytes in
+    /// `buf[..index]` may be set arbitrarily. Only
+    /// b'0'-b'9' and b'a'-b'f' can be output to `buf[index..]`.
+    pub fn to_hex_string_buffer(self, buf: &mut [u64; 8]) -> usize {
         if self.is_zero() {
-            return "0x0".to_owned()
+            return 64
         }
         let swar = |x: u64| -> u64 {
             // Using SWAR techniques to process one u32 at a time.
@@ -157,8 +165,6 @@ impl U256 {
             x.wrapping_add(offsets)
         };
 
-        // need room for 256/4 bytes
-        let mut s_chunks = [0u64; 8];
         let mut char_len = 0;
         for j in (0..4).rev() {
             // find first nonzero leading digit
@@ -179,27 +185,39 @@ impl U256 {
                     let x = self.0 .0[i];
                     let lo = x as u32 as u64;
                     let hi = (x >> 32) as u32 as u64;
-                    // reverse at the chunk level
-                    s_chunks[s_chunks.len() - 1 - (i << 1)] = swar(lo);
-                    s_chunks[s_chunks.len() - 2 - (i << 1)] = swar(hi);
+                    // reverse at the chunk level. The `from_le` fixes big endian architectures.
+                    buf[buf.len() - 1 - (i << 1)] = u64::from_le(swar(lo));
+                    buf[buf.len() - 2 - (i << 1)] = u64::from_le(swar(hi));
                 }
                 break
             }
         }
-        let s_bytes_le: [u8; 8 * 8] = bytemuck::try_cast(s_chunks).unwrap();
-        // the +2 is for the extra leading "0x"
-        let mut s: Vec<u8> = alloc::vec![0; char_len + 2];
+        64 - char_len
+    }
+
+    /// Returns a hexadecimal string representation of `self`, including a "0x"
+    /// prefix. If `self.is_zero()`, this returns "0x0"
+    pub fn to_hex_string(self) -> String {
+        let mut buf = [0u64; 8];
+        let index = self.to_hex_string_buffer(&mut buf);
+        if index == 64 {
+            return "0x0".to_owned()
+        }
+        let byte_buf: [u8; 64] = bytemuck::try_cast(buf).unwrap();
+        // the +2 makes room for the prefix
+        let char_len = (64 - index) + 2;
+        let mut s: Vec<u8> = alloc::vec![0; char_len];
         s[0] = b'0';
         s[1] = b'x';
-        s[2..].copy_from_slice(&s_bytes_le[(s_bytes_le.len() - char_len)..]);
+        s[2..].copy_from_slice(&byte_buf[index..]);
         #[cfg(all(debug_assertions, not(miri)))]
         {
             String::from_utf8(s).unwrap()
         }
         #[cfg(any(not(debug_assertions), miri))]
         {
-            // Safety: the algorithm above can only output b'0'-b'9', b'a'-b'f', and b'x',
-            // and we have tested all nibble combinations
+            // Safety: `to_hex_string_buffer` only set `buf[index..]` to b'0'-b'9' and
+            // b'a'-b'f', and the prefix adds b'x'.
             unsafe { String::from_utf8_unchecked(s) }
         }
     }
@@ -276,19 +294,45 @@ impl U256 {
 #[cfg(not(feature = "use_parity_uint"))]
 impl fmt::LowerHex for U256 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.to_hex_string())
+        let mut buf = [0u64; 8];
+        let index = self.to_hex_string_buffer(&mut buf);
+        let byte_buf: [u8; 64] = bytemuck::try_cast(buf).unwrap();
+        if index == 64 {
+            return f.pad_integral(true, "0x", "0")
+        }
+        #[cfg(all(debug_assertions, not(miri)))]
+        {
+            f.pad_integral(
+                true,
+                "0x",
+                core::str::from_utf8(&byte_buf[index..]).unwrap(),
+            )
+        }
+        #[cfg(any(not(debug_assertions), miri))]
+        {
+            // Safety: `to_hex_string_buffer` only set `byte_buf[index..]` to b'0'-b'9' and
+            // b'a'-b'f'
+            unsafe {
+                f.pad_integral(
+                    true,
+                    "0x",
+                    core::str::from_utf8_unchecked(&byte_buf[index..]),
+                )
+            }
+        }
     }
 }
 
 #[cfg(not(feature = "use_parity_uint"))]
 impl fmt::Display for U256 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.to_dec_string())
+        f.pad_integral(true, "", &self.to_dec_string())
     }
 }
 
 #[cfg(feature = "serde_support")]
 impl Serialize for U256 {
+    /// Includes a "0x" prefix.
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -299,6 +343,7 @@ impl Serialize for U256 {
 
 #[cfg(feature = "serde_support")]
 impl<'de> Deserialize<'de> for U256 {
+    /// Uses `from_dec_or_hex_str`.
     fn deserialize<D>(deserializer: D) -> Result<U256, D::Error>
     where
         D: Deserializer<'de>,

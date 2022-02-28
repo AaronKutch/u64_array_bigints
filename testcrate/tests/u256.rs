@@ -71,9 +71,12 @@ fn identities_inner(x0: U256, x1: U256, y0: &Bits, y2: &mut Bits) {
 
     assert_eq!(U256::from_u8_array_be(x0.to_u8_array_be()), x0);
 
-    let mut tmp = x0;
-    tmp.as_u8_slice_mut().copy_from_slice(&x1.to_u8_array());
-    assert_eq!(tmp, x1);
+    #[cfg(target_endian = "little")]
+    {
+        let mut tmp = x0;
+        tmp.as_u8_slice_mut().copy_from_slice(&x1.to_u8_array());
+        assert_eq!(tmp, x1);
+    }
 
     assert_eq!(
         U256::from_bytes(&x0.to_u8_array()[..(32 - (x0.lz() / 8))]).unwrap(),

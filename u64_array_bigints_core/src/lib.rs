@@ -4,8 +4,10 @@
 //! just use the main `u64_array_bigints` crate in their `Cargo.toml`.
 
 #![no_std]
+#![allow(clippy::manual_map)]
 
 extern crate alloc;
+mod common;
 mod serial;
 mod std_ops;
 mod uint;

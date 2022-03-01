@@ -1,6 +1,6 @@
 #![allow(clippy::needless_range_loop)]
 
-use awint::Bits;
+use awint::{inlawi, Bits, InlAwi};
 use rand_xoshiro::{rand_core::RngCore, Xoshiro128StarStar};
 use u64_array_bigints::{Uint, U256};
 
@@ -14,36 +14,23 @@ pub const N: u32 = if cfg!(miri) {
 
 /// Panics if `usize::BITS != 64` or `awint.bw() != Uint::<LEN>::bw()`
 pub fn uint_to_awint<const LEN: usize>(awint: &mut Bits, uint: Uint<LEN>) {
-    if usize::BITS != 64 {
-        // this could be fixed if the need arises
-        panic!("testing only supported on 64 bit architectures");
-    }
     if awint.bw() != Uint::<LEN>::bw() {
         panic!("bitwidth mismatch");
     }
-    // should optimize ok
-    let mut x: [usize; LEN] = [0; LEN];
-    for i in 0..LEN {
-        x[i] = uint.0[i] as usize;
+    let mut tmp = inlawi!(0u64);
+    // architecture independent
+    for (i, x) in uint.to_u64_array().iter().enumerate() {
+        tmp.u64_assign(*x);
+        awint.field(i * 64, &tmp, 0, 64);
     }
-    awint.as_mut_slice().copy_from_slice(&x);
 }
 
 /// Panics if `usize::BITS != 64` or `awint.bw() != Uint::<LEN>::bw()`
 pub fn u256_to_awint(awint: &mut Bits, uint: U256) {
-    if usize::BITS != 64 {
-        // this could be fixed if the need arises
-        panic!("testing only supported on 64 bit architectures");
-    }
     if awint.bw() != 256 {
         panic!("bitwidth mismatch");
     }
-    // should optimize ok
-    let mut x: [usize; 4] = [0; 4];
-    for i in 0..4 {
-        x[i] = uint.to_u64_array()[i] as usize;
-    }
-    awint.as_mut_slice().copy_from_slice(&x);
+    awint.as_mut_slice().copy_from_slice(&uint.to_usize_array());
 }
 
 /*
@@ -69,15 +56,14 @@ pub fn awint_to_uint<const LEN: usize>(awint: &Bits) -> Uint<LEN> {
 /// Panics if the bitwidths or bitvalues of `awint` do not equal that of `uint`
 #[track_caller]
 pub fn assert_eq_awint<const LEN: usize>(awint: &Bits, uint: Uint<LEN>) {
-    if usize::BITS != 64 {
-        // this could be fixed if the need arises
-        panic!("testing only supported on 64 bit architectures");
-    }
     if awint.bw() != Uint::<LEN>::bw() {
         panic!("bitwidth mismatch");
     }
-    for i in 0..LEN {
-        if (awint.as_slice()[i] as u64) != uint.0[i] {
+    let mut tmp = inlawi!(0u64);
+    // architecture independent
+    for (i, x) in uint.to_u64_array().iter().enumerate() {
+        tmp.field(0, awint, i * 64, 64);
+        if *x != tmp.to_u64() {
             panic!("awint {:?} is not equal to uint {:?}", awint, uint);
         }
     }
@@ -93,10 +79,8 @@ pub fn assert_eq_awint_u256(awint: &Bits, uint: U256) {
     if awint.bw() != 256 {
         panic!("bitwidth mismatch");
     }
-    for i in 0..4 {
-        if (awint.as_slice()[i] as u64) != uint.to_u64_array()[i] {
-            panic!("awint {:?} is not equal to uint {:?}", awint, uint);
-        }
+    if awint.as_slice() != uint.to_usize_array() {
+        panic!("awint {:?} is not equal to uint {:?}", awint, uint);
     }
 }
 

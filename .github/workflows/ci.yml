@@ -70,3 +70,16 @@ jobs:
         run: |
           cargo clippy --all --all-targets --no-default-features -- -D clippy::all
           cargo clippy --all --all-targets --all-features -- -D clippy::all
+
+  # makes sure the tests work on 32 bit and 64 bit big endian targets
+  cross-compile-big-endian:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: cross-compile-mips
+      run: |
+        cargo install cross
+        cross test --target mips64-unknown-linux-gnuabi64 --no-default-features --features=rand_support,serde_support
+        cross test --target mips64-unknown-linux-gnuabi64 --all-features
+        cross test --target mips-unknown-linux-gnu --no-default-features --features=rand_support,serde_support
+        cross test --target mips-unknown-linux-gnu --all-features

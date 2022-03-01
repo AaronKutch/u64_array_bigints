@@ -54,65 +54,15 @@ const fn verify_for_bytes_assign(src: &[u8], radix: u8) -> Result<(), FromStrRad
 }
 
 impl U256 {
-    /// A version of `from_bytes_radix` optimized for power of two
-    /// radixes
-    #[doc(hidden)]
-    pub const fn from_power_of_two_bytes(src: &[u8], radix: u8) -> Result<U256, FromStrRadixErr> {
-        if !radix.is_power_of_two() {
-            return Err(InvalidRadix)
+    // TODO hex parsing can be done as fast as the formatting
+    /*pub fn from_hex_str(src: &[u8], radix: u8) -> Result<Self, FromStrRadixErr> {
+        for i in 0..((src.len() / 16) + (((src.len() % 16) != 0) as usize)) {
+            let x = u64::from_str_radix(src[(i * 16)..min(src.len(), (i * 16) + 1)], 16);
         }
-        let log2 = radix.trailing_zeros() as usize;
-        if let Err(e) = verify_for_bytes_assign(src, radix) {
-            return Err(e)
-        }
-        let mut pad = U256::zero();
-        let mut shl = 0;
-        const_for!(i in {0..src.len()}.rev() {
-            let b = src[i];
-            if b == b'_' {
-                continue;
-            }
-            let char_digit = if b <= b'9' {
-                b.wrapping_sub(b'0')
-            } else if b <= b'Z' {
-                b.wrapping_sub(b'A').wrapping_add(10)
-            } else {
-                b.wrapping_sub(b'a').wrapping_add(10)
-            } as u64;
-            pad = pad.u64_or(char_digit, shl);
-            shl += log2;
-            if shl >= 256 {
-                let tmp = if let Some(tmp) = BITS
-                    .wrapping_sub(char_digit.leading_zeros() as usize).checked_add(shl) {
-                    if let Some(tmp) = tmp.checked_sub(log2) {
-                        tmp
-                    } else {
-                        return Err(Overflow)
-                    }
-                } else {
-                    return Err(Overflow)
-                };
-                // check that the last digit did not cross the end
-                if tmp > 256 {
-                    return Err(Overflow)
-                }
-                // there may be a bunch of leading zeros, so do not return an error yet
-                const_for!(i in {0..i} {
-                    match src[i] {
-                        b'_' | b'0' => (),
-                        _ => return Err(Overflow)
-                    }
-                });
-                break
-            }
-        });
-        Ok(pad)
-    }
+
+    }*/
 
     pub const fn from_bytes_radix(src: &[u8], radix: u8) -> Result<Self, FromStrRadixErr> {
-        if radix.is_power_of_two() {
-            return Self::from_power_of_two_bytes(src, radix)
-        }
         if let Err(e) = verify_for_bytes_assign(src, radix) {
             return Err(e)
         }
@@ -175,7 +125,7 @@ impl U256 {
         if src.len() <= 2 {
             Self::from_bytes_radix(src, 10)
         } else if (src[0] == b'0') && (src[1] == b'x') {
-            Self::from_power_of_two_bytes(&src[2..], 16)
+            Self::from_bytes_radix(&src[2..], 16)
         } else {
             Self::from_bytes_radix(src, 10)
         }

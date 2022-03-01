@@ -185,15 +185,6 @@ impl U256 {
     }
 
     #[must_use]
-    pub const fn const_or(self, other: U256) -> U256 {
-        let mut res = U256::zero();
-        const_for!(i in {0usize..4} {
-            res.0[i] = self.0[i] | other.0[i];
-        });
-        res
-    }
-
-    #[must_use]
     pub fn wrapping_add(self, other: U256) -> U256 {
         self.overflowing_add(other).0
     }
@@ -337,26 +328,6 @@ impl U256 {
             res.0[i] = tmp.0.0;
         });
         Some((res, rem))
-    }
-
-    /// Quickly ORs `rhs` into `self` at bit position `shl`
-    #[must_use]
-    pub const fn u64_or(self, rhs: u64, shl: usize) -> Self {
-        if shl >= 256 {
-            return self
-        }
-        let mut res = self;
-        let bits = shl % 64;
-        let digits = shl / 64;
-        if bits == 0 {
-            res.0[digits] |= rhs;
-        } else {
-            res.0[digits] |= rhs << bits;
-            if (digits + 1) < 4 {
-                res.0[digits + 1] |= rhs >> (64 - bits);
-            }
-        }
-        res
     }
 
     /// Randomly-assigns `self` using a `rand_core::RngCore` random number

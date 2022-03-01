@@ -41,8 +41,8 @@ fn parse_dec(bencher: &mut Bencher) {
 #[bench]
 fn parse_std(bencher: &mut Bencher) {
     let mut rng = Xoshiro128StarStar::seed_from_u64(0);
-    let s = U256::rand_using(black_box(&mut rng)).wrapping_shr(192).to_hex_string();
-    bencher.iter(|| 
-        u64::from_str_radix(black_box(&s[2..]), 16).unwrap()
-    )
+    let s = U256::rand_using(black_box(&mut rng))
+        .wrapping_shr(192)
+        .to_hex_string();
+    bencher.iter(|| u64::from_str_radix(black_box(&s[2..]), 16).unwrap())
 }

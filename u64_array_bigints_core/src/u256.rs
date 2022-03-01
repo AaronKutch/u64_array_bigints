@@ -195,6 +195,11 @@ impl U256 {
         a
     }
 
+    #[must_use]
+    pub const fn const_or(self, other: Self) -> Self {
+        Self(self.0.const_or(other.0))
+    }
+
     pub const fn overflowing_add(self, other: Self) -> (Self, bool) {
         let tmp = self.0.overflowing_add(other.0);
         (Self(tmp.0), tmp.1)
@@ -223,6 +228,16 @@ impl U256 {
     #[must_use]
     pub const fn wrapping_mul(self, other: Self) -> Self {
         Self(self.0.wrapping_mul(other.0))
+    }
+
+    #[must_use]
+    pub const fn wrapping_shl(self, s: usize) -> Self {
+        Self(self.0.wrapping_shl(s))
+    }
+
+    #[must_use]
+    pub const fn wrapping_shr(self, s: usize) -> Self {
+        Self(self.0.wrapping_shr(s))
     }
 
     // can't use `map` because of `const`
@@ -397,6 +412,26 @@ impl U256 {
             Some((x, y)) => Some((Self(x), Self(y))),
             None => None,
         }
+    }
+
+    /// Quickly ORs `rhs` into `self` at bit position `shl`
+    #[must_use]
+    pub const fn u64_or(self, rhs: u64, shl: usize) -> Self {
+        if shl >= 256 {
+            return self
+        }
+        let mut res = self;
+        let bits = shl % 64;
+        let digits = shl / 64;
+        if bits == 0 {
+            res.0 .0[digits] |= rhs;
+        } else {
+            res.0 .0[digits] |= rhs << bits;
+            if (digits + 1) < 4 {
+                res.0 .0[digits + 1] |= rhs >> (64 - bits);
+            }
+        }
+        res
     }
 }
 

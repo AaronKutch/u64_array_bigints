@@ -187,8 +187,8 @@ impl U256 {
             pad1 = tmp.0;
             let o1 = tmp.1;
             if o1 != 0 {
-                const_for!(i in {0..i} {
-                    match src[i] {
+                const_for!(j in {0..i} {
+                    match src[j] {
                         b'_' | b'0' => (),
                         _ => return Err(Overflow)
                     }
@@ -284,10 +284,7 @@ impl U256 {
         let mut char_len = 0;
         for j in (0..4).rev() {
             // find first nonzero leading digit
-            #[cfg(feature = "use_parity_uint")]
-            let y = self.0[j];
-            #[cfg(not(feature = "use_parity_uint"))]
-            let y = self.0 .0[j];
+            let y = self.to_u64_array()[j];
             if y != 0 {
                 let sig_bits = BITS
                     .wrapping_sub(y.leading_zeros() as usize)
@@ -295,10 +292,7 @@ impl U256 {
                 // the nibble with the msb and all less significant nibbles count
                 char_len = (sig_bits >> 2).wrapping_add(((sig_bits & 0b11) != 0) as usize);
                 for i in 0..=j {
-                    #[cfg(feature = "use_parity_uint")]
-                    let x = self.0[i];
-                    #[cfg(not(feature = "use_parity_uint"))]
-                    let x = self.0 .0[i];
+                    let x = self.to_u64_array()[i];
                     let lo = x as u32 as u64;
                     let hi = (x >> 32) as u32 as u64;
                     // reverse at the chunk level. The `from_le` fixes big endian architectures.
@@ -394,9 +388,9 @@ impl U256 {
 /*impl FromStr for U256 {
     type Err = FromStrRadixErr;
 
-    /// Uses `from_dec_or_hex_str`
+    /// Uses `from_dec_or_hex_str_restricted`
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::from_dec_or_hex_str(s)
+        Self::from_dec_or_hex_str_restricted(s)
     }
 }*/
 
@@ -459,7 +453,7 @@ impl Serialize for U256 {
 
 #[cfg(feature = "serde_support")]
 impl<'de> Deserialize<'de> for U256 {
-    /// Uses `from_dec_or_hex_str`.
+    /// Uses `from_dec_or_hex_str_restricted`.
     fn deserialize<D>(deserializer: D) -> Result<U256, D::Error>
     where
         D: Deserializer<'de>,

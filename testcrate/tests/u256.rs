@@ -30,6 +30,7 @@ fn identities_inner(rng: &mut Xoshiro128StarStar, x0: U256, x1: U256, y0: &Bits,
     assert_eq!(x0.resize_to_u32(), y0.to_u32());
     assert_eq!(x0.resize_to_u64(), y0.to_u64());
     assert_eq!(x0.resize_to_u128(), y0.to_u128());
+    assert_eq!(x0.resize_to_usize(), y0.to_usize());
     assert_eq!(
         x0.try_resize_to_bool().is_none(),
         inlawi!(0u1).zero_resize_assign(y0)
@@ -54,6 +55,11 @@ fn identities_inner(rng: &mut Xoshiro128StarStar, x0: U256, x1: U256, y0: &Bits,
         x0.try_resize_to_u128().is_none(),
         inlawi!(0u128).zero_resize_assign(y0)
     );
+    let mut tmp = ExtAwi::zero(bw(usize::BITS as usize));
+    assert_eq!(
+        x0.try_resize_to_usize().is_none(),
+        tmp.zero_resize_assign(y0)
+    );
     y2.bool_assign(y0.to_bool());
     assert_eq_awint_u256(y2, U256::from_bool(y0.to_bool()));
     y2.u8_assign(y0.to_u8());
@@ -66,6 +72,8 @@ fn identities_inner(rng: &mut Xoshiro128StarStar, x0: U256, x1: U256, y0: &Bits,
     assert_eq_awint_u256(y2, U256::from_u64(y0.to_u64()));
     y2.u128_assign(y0.to_u128());
     assert_eq_awint_u256(y2, U256::from_u128(y0.to_u128()));
+    y2.usize_assign(y0.to_usize());
+    assert_eq_awint_u256(y2, U256::from_usize(y0.to_usize()));
 
     assert_eq!(U256::from_u8_array(x0.to_u8_array()), x0);
     assert_eq!(U256::from_u16_array(x0.to_u16_array()), x0);

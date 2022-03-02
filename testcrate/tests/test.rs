@@ -81,6 +81,88 @@ fn to_hex_string() {
 }
 
 #[test]
+fn format() {
+    let x = u256!(0x0123456789abcedffdecba98765432100f1e2d3c4b5a697813375ca1ab1e1337);
+    assert_eq!(
+        format!("{}", x),
+        "514631507721406819000807973055347587171986281168858714843337847970547503927"
+    );
+    assert_eq!(
+        format!("{:x}", x),
+        "123456789abcedffdecba98765432100f1e2d3c4b5a697813375ca1ab1e1337"
+    );
+    assert_eq!(
+        format!("{:#x}", x),
+        "0x123456789abcedffdecba98765432100f1e2d3c4b5a697813375ca1ab1e1337"
+    );
+}
+
+#[test]
+fn restricted() {
+    assert_eq!(
+        U256::from_dec_or_hex_str_restricted(&U256::max_value().to_hex_string()).unwrap(),
+        U256::max_value()
+    );
+    assert_eq!(
+        U256::from_dec_or_hex_str_restricted(&U256::max_value().to_dec_string()).unwrap(),
+        U256::max_value()
+    );
+    assert!(U256::from_dec_or_hex_str_restricted("0x1_2").is_err());
+    assert!(U256::from_dec_or_hex_str_restricted(
+        "0115792089237316195423570985008687907853269984665640564039457584007913129639935"
+    )
+    .is_err());
+}
+
+#[cfg(not(miri))]
+#[test]
+fn all_byte_combos() {
+    let mut s = [b'0'; 64];
+    for i in 0..64 {
+        for b in 0..=255u8 {
+            s[s.len() - 1 - i] = b;
+            match b {
+                b'0'..=b'9' => {
+                    if U256::from_hex_str_fast(&s).unwrap()
+                        != U256::from_u8(b - b'0').wrapping_shl(i * 4)
+                    {
+                        dbg!(
+                            &s,
+                            b,
+                            U256::from_u8(b - b'0').wrapping_shl(i * 4).to_hex_string(),
+                            U256::from_hex_str_fast(&s).unwrap().to_hex_string()
+                        );
+                    }
+                    assert!(
+                        U256::from_hex_str_fast(&s).unwrap()
+                            == U256::from_u8(b - b'0').wrapping_shl(i * 4)
+                    );
+                }
+                b'a'..=b'f' => {
+                    assert!(
+                        U256::from_hex_str_fast(&s).unwrap()
+                            == U256::from_u8(b - b'a' + 10).wrapping_shl(i * 4)
+                    );
+                }
+                _ => {
+                    assert!(U256::from_hex_str_fast(&s).is_err());
+                }
+            }
+            match b {
+                b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F' | b'_' => {
+                    assert!(U256::from_bytes_radix(&s, 16).is_ok());
+                }
+                _ => {
+                    assert!(U256::from_bytes_radix(&s, 16).is_err());
+                }
+            }
+            // set back
+            s[s.len() - 1 - i] = b'0';
+        }
+    }
+}
+
+#[test]
 #[should_panic]
 fn len_0() {
     let _ = Uint::<0>::from_u64_array([]);

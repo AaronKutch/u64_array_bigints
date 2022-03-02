@@ -225,6 +225,16 @@ impl U256 {
         Self(self.0.wrapping_mul(other.0))
     }
 
+    #[must_use]
+    pub const fn wrapping_shl(self, s: usize) -> Self {
+        Self(self.0.wrapping_shl(s))
+    }
+
+    #[must_use]
+    pub const fn wrapping_shr(self, s: usize) -> Self {
+        Self(self.0.wrapping_shr(s))
+    }
+
     // can't use `map` because of `const`
 
     pub const fn checked_add(self, rhs: Self) -> Option<Self> {

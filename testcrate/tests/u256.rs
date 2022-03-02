@@ -1,5 +1,8 @@
 use awint::{bw, inlawi, Bits, ExtAwi, InlAwi};
-use rand_xoshiro::{rand_core::SeedableRng, Xoshiro128StarStar};
+use rand_xoshiro::{
+    rand_core::{RngCore, SeedableRng},
+    Xoshiro128StarStar,
+};
 use testcrate::*;
 use u64_array_bigints::{u256, U256};
 
@@ -19,7 +22,8 @@ fn specific() {
 }
 
 // fuzz U256 specific stuff
-fn identities_inner(x0: U256, x1: U256, y0: &Bits, y2: &mut Bits) {
+#[cfg_attr(target_endian = "big", allow(unused_variables))]
+fn identities_inner(rng: &mut Xoshiro128StarStar, x0: U256, x1: U256, y0: &Bits, y2: &mut Bits) {
     assert_eq!(x0.resize_to_bool(), y0.to_bool());
     assert_eq!(x0.resize_to_u8(), y0.to_u8());
     assert_eq!(x0.resize_to_u16(), y0.to_u16());
@@ -71,9 +75,12 @@ fn identities_inner(x0: U256, x1: U256, y0: &Bits, y2: &mut Bits) {
 
     assert_eq!(U256::from_u8_array_be(x0.to_u8_array_be()), x0);
 
-    let mut tmp = x0;
-    tmp.as_u8_slice_mut().copy_from_slice(&x1.to_u8_array());
-    assert_eq!(tmp, x1);
+    #[cfg(target_endian = "little")]
+    {
+        let mut tmp = x0;
+        tmp.as_u8_slice_mut().copy_from_slice(&x1.to_u8_array());
+        assert_eq!(tmp, x1);
+    }
 
     assert_eq!(
         U256::from_bytes(&x0.to_u8_array()[..(32 - (x0.lz() / 8))]).unwrap(),
@@ -85,9 +92,13 @@ fn identities_inner(x0: U256, x1: U256, y0: &Bits, y2: &mut Bits) {
         x0
     );
 
-    let mut s = "0x".to_owned();
-    s += &ExtAwi::bits_to_string_radix(y0, false, 16, false, 1).unwrap();
-    assert_eq!(s, x0.to_hex_string());
+    let plain = ExtAwi::bits_to_string_radix(y0, false, 16, false, 1).unwrap();
+    let zeroes = "0".repeat((rng.next_u32() % 67) as usize);
+    let noprefix = zeroes + &plain;
+    assert_eq!(U256::from_hex_str_fast(noprefix.as_bytes()).unwrap(), x0);
+    let s = "0x".to_owned() + &noprefix;
+    let plain_and_prefix = "0x".to_owned() + &plain;
+    assert_eq!(plain_and_prefix, x0.to_hex_string());
     assert_eq!(U256::from_bytes_radix(&s.as_bytes()[2..], 16).unwrap(), x0);
     assert_eq!(U256::from_dec_or_hex_str(&s).unwrap(), x0);
 
@@ -114,7 +125,7 @@ fn fuzz_u256() {
             edge_cases_u256!(fl, x1, {
                 u256_to_awint(&mut y0, x0);
                 u256_to_awint(&mut y1, x1);
-                identities_inner(x0, x1, &y0, &mut y2);
+                identities_inner(&mut rng, x0, x1, &y0, &mut y2);
             })
         });
     }
@@ -125,6 +136,6 @@ fn fuzz_u256() {
         fuzz_step_u256(&mut rng, &mut x1);
         u256_to_awint(&mut y0, x0);
         u256_to_awint(&mut y1, x1);
-        identities_inner(x0, x1, &y0, &mut y2);
+        identities_inner(&mut rng, x0, x1, &y0, &mut y2);
     }
 }

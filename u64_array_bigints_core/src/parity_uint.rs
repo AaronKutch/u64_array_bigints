@@ -200,12 +200,29 @@ impl U256 {
     }
 
     #[must_use]
-    pub fn wrapping_shl(self, s: usize) -> U256 {
+    pub const fn wrapping_shl(self, s: usize) -> U256 {
         if s >= 256 {
             panic!("shifted left by >= 256")
-        } else {
-            self << s
         }
+        if s == 0 {
+            return self
+        }
+        let mut res = Self::zero();
+        // digits to shift by
+        let digits = s / 64;
+        const_for!(i in {0..(4usize - digits)} {
+            res.0[i + digits] = self.0[i];
+        });
+        // bits to shift by (modulo digit size)
+        let bits = s % 64;
+        if bits != 0 {
+            const_for!(i in {1usize..4}.rev() {
+                res.0[i] = (res.0[i - 1] >> (64 - bits))
+                    | (res.0[i] << bits);
+            });
+            res.0[0] <<= bits;
+        }
+        res
     }
 
     #[must_use]

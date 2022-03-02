@@ -5,6 +5,12 @@
 - Fixed deserialization bug where chars that shouldn't be accepted were sometimes accepted when the
   radix was above 10
 
+### Changes
+- Deserialization uses `from_dec_or_hex_str_restricted`
+
+### Additions
+- added `from_dec_or_hex_str_restricted`
+
 ## [0.2.1] - 2022-02-28
 ### Fixes
 - Fixed formatting impls to use `pad_integral`. The non-alternate form of `LowerHex` (the one

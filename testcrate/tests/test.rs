@@ -98,6 +98,24 @@ fn format() {
 }
 
 #[test]
+fn restricted() {
+    assert_eq!(
+        U256::from_dec_or_hex_str_restricted(&U256::max_value().to_hex_string()).unwrap(),
+        U256::max_value()
+    );
+    assert_eq!(
+        U256::from_dec_or_hex_str_restricted(&U256::max_value().to_dec_string()).unwrap(),
+        U256::max_value()
+    );
+    assert!(U256::from_dec_or_hex_str_restricted("0x1_2").is_err());
+    assert!(U256::from_dec_or_hex_str_restricted(
+        "0115792089237316195423570985008687907853269984665640564039457584007913129639935"
+    )
+    .is_err());
+}
+
+#[cfg(not(miri))]
+#[test]
 fn all_byte_combos() {
     let mut s = [b'0'; 64];
     for i in 0..64 {
@@ -105,6 +123,16 @@ fn all_byte_combos() {
             s[s.len() - 1 - i] = b;
             match b {
                 b'0'..=b'9' => {
+                    if U256::from_hex_str_fast(&s).unwrap()
+                        != U256::from_u8(b - b'0').wrapping_shl(i * 4)
+                    {
+                        dbg!(
+                            &s,
+                            b,
+                            U256::from_u8(b - b'0').wrapping_shl(i * 4).to_hex_string(),
+                            U256::from_hex_str_fast(&s).unwrap().to_hex_string()
+                        );
+                    }
                     assert!(
                         U256::from_hex_str_fast(&s).unwrap()
                             == U256::from_u8(b - b'0').wrapping_shl(i * 4)

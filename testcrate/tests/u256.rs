@@ -22,6 +22,7 @@ fn specific() {
 }
 
 // fuzz U256 specific stuff
+#[cfg_attr(target_endian = "big", allow(unused_variables))]
 fn identities_inner(rng: &mut Xoshiro128StarStar, x0: U256, x1: U256, y0: &Bits, y2: &mut Bits) {
     assert_eq!(x0.resize_to_bool(), y0.to_bool());
     assert_eq!(x0.resize_to_u8(), y0.to_u8());

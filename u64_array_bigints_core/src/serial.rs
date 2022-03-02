@@ -140,6 +140,8 @@ impl U256 {
         bytes_buf[(len - max_copy)..].copy_from_slice(&src[(src.len() - max_copy)..]);
         let mut res = [0u64; 4];
         const_for!(i in {0..buf.len()} {
+            // fix for big endian, is a no-op on little endian architectures
+            buf[i] = u64::from_le(buf[i]);
             if buf[i] != 0x3030_3030_3030_3030 {
                 let x = match swar(buf[i]) {
                     Ok(x) => x,
@@ -215,6 +217,23 @@ impl U256 {
             Self::from_bytes_radix(src, 10)
         } else if (src[0] == b'0') && (src[1] == b'x') {
             Self::from_bytes_radix(&src[2..], 16)
+        } else {
+            Self::from_bytes_radix(src, 10)
+        }
+    }
+
+    /// Same as `from_dec_or_hex_str` but may not allow for '_' or more than 78
+    /// bytes
+    pub fn from_dec_or_hex_str_restricted(src: &str) -> Result<Self, FromStrRadixErr> {
+        // length of decimal maximum value with no '_'
+        if src.len() > 78 {
+            return Err(Overflow)
+        }
+        let src = src.as_bytes();
+        if src.len() <= 2 {
+            Self::from_bytes_radix(src, 10)
+        } else if (src[0] == b'0') && (src[1] == b'x') {
+            Self::from_hex_str_fast(&src[2..])
         } else {
             Self::from_bytes_radix(src, 10)
         }
@@ -445,8 +464,7 @@ impl<'de> Deserialize<'de> for U256 {
     where
         D: Deserializer<'de>,
     {
-        // Create U256 given the sliced data, and radix
-        U256::from_dec_or_hex_str(&String::deserialize(deserializer)?)
+        U256::from_dec_or_hex_str_restricted(&String::deserialize(deserializer)?)
             .map_err(serde::de::Error::custom)
     }
 }

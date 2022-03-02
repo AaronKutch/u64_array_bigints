@@ -25,10 +25,10 @@ fn format_fast(bencher: &mut Bencher) {
 }
 
 #[bench]
-fn parse_hex(bencher: &mut Bencher) {
+fn parse_hex_fast(bencher: &mut Bencher) {
     let mut rng = Xoshiro128StarStar::seed_from_u64(0);
     let s = U256::rand_using(black_box(&mut rng)).to_hex_string();
-    bencher.iter(|| U256::from_dec_or_hex_str(black_box(&s)))
+    bencher.iter(|| U256::from_hex_str_fast(black_box(&s.as_bytes()[2..])))
 }
 
 #[bench]
@@ -39,7 +39,7 @@ fn parse_dec(bencher: &mut Bencher) {
 }
 
 #[bench]
-fn parse_std(bencher: &mut Bencher) {
+fn parse_u64_hex_std(bencher: &mut Bencher) {
     let mut rng = Xoshiro128StarStar::seed_from_u64(0);
     let s = U256::rand_using(black_box(&mut rng))
         .wrapping_shr(192)

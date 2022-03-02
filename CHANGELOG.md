@@ -1,12 +1,17 @@
 # Changelog
 
-## [0.2.1] - 2022-2-28
+## [0.3.0] - 2022-03-01
+### Fixes
+- Fixed deserialization bug where chars that shouldn't be accepted were sometimes accepted when the
+  radix was above 10
+
+## [0.2.1] - 2022-02-28
 ### Fixes
 - Fixed formatting impls to use `pad_integral`. The non-alternate form of `LowerHex` (the one
   involving the "{:x}" format string) now does not include the leading "0x". Only the alternate
   "{:#x}" format should include the leading "0x".
 
-## [0.2.0] - 2022-2-25
+## [0.2.0] - 2022-02-25
 ### Fixes
 - Casting is now correct on big endian systems
 

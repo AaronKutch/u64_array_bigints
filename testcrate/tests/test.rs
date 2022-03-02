@@ -98,6 +98,43 @@ fn format() {
 }
 
 #[test]
+fn all_byte_combos() {
+    let mut s = [b'0'; 64];
+    for i in 0..64 {
+        for b in 0..=255u8 {
+            s[s.len() - 1 - i] = b;
+            match b {
+                b'0'..=b'9' => {
+                    assert!(
+                        U256::from_hex_str_fast(&s).unwrap()
+                            == U256::from_u8(b - b'0').wrapping_shl(i * 4)
+                    );
+                }
+                b'a'..=b'f' => {
+                    assert!(
+                        U256::from_hex_str_fast(&s).unwrap()
+                            == U256::from_u8(b - b'a' + 10).wrapping_shl(i * 4)
+                    );
+                }
+                _ => {
+                    assert!(U256::from_hex_str_fast(&s).is_err());
+                }
+            }
+            match b {
+                b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F' | b'_' => {
+                    assert!(U256::from_bytes_radix(&s, 16).is_ok());
+                }
+                _ => {
+                    assert!(U256::from_bytes_radix(&s, 16).is_err());
+                }
+            }
+            // set back
+            s[s.len() - 1 - i] = b'0';
+        }
+    }
+}
+
+#[test]
 #[should_panic]
 fn len_0() {
     let _ = Uint::<0>::from_u64_array([]);

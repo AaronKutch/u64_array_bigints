@@ -35,7 +35,7 @@ const fn verify_for_bytes_assign(src: &[u8], radix: u8) -> Result<(), FromStrRad
         if b == b'_' {
             continue;
         }
-        let in_decimal_range = b'0' <= b && b < b'0'.wrapping_add(radix);
+        let in_decimal_range = b'0' <= b && b < b'0'.wrapping_add(if radix < 10 {radix} else {10});
         let in_lower_range = (radix > 10)
             && (b'a' <= b)
             && (b < b'a'.wrapping_add(radix).wrapping_sub(10));
@@ -54,13 +54,102 @@ const fn verify_for_bytes_assign(src: &[u8], radix: u8) -> Result<(), FromStrRad
 }
 
 impl U256 {
-    // TODO hex parsing can be done as fast as the formatting
-    /*pub fn from_hex_str(src: &[u8], radix: u8) -> Result<Self, FromStrRadixErr> {
-        for i in 0..((src.len() / 16) + (((src.len() % 16) != 0) as usize)) {
-            let x = u64::from_str_radix(src[(i * 16)..min(src.len(), (i * 16) + 1)], 16);
-        }
+    // This function does not accept "0x", b'A'-b'F', or '_'. This is designed for
+    // usage in deserialization functions whose corresponding serialization
+    // functions are also restricted.
+    pub fn from_hex_str_fast(src: &[u8]) -> Result<Self, FromStrRadixErr> {
+        // Using SWAR techniques to process 8 hex chars at a time.
+        let swar = |x: u64| -> Result<u32, FromStrRadixErr> {
+            // this seems like a lot, but the overflow branches here are rarely taken and
+            // most operations can be done in parallel
 
-    }*/
+            const MSBS: u64 = 0x8080_8080_8080_8080;
+            // get the msb out of the way so that later carries cannot propogate between
+            // byte boundaries
+            if (x & MSBS) != 0 {
+                return Err(InvalidChar)
+            }
+            // add -(b'f' + 1)u7 (ASCII z no 8th bit)
+            let gt_f = x.wrapping_add(0x1919_1919_1919_1919) & MSBS;
+            if gt_f != 0 {
+                // overflow in at least one of the bytes, there was a char above b'f'
+                return Err(InvalidChar)
+            }
+            // add -b'0'u7
+            let ge_0 = x.wrapping_add(0x5050_5050_5050_5050) & MSBS;
+            let lt_0 = ge_0 ^ MSBS;
+            if lt_0 != 0 {
+                return Err(InvalidChar)
+            }
+
+            // now all bytes are in the range b'0'..=b'f', but need to remove two more
+            // ranges
+
+            // add -b'a'u7
+            let ge_a = x.wrapping_add(0x1f1f_1f1f_1f1f_1f1f) & MSBS;
+            let lt_a = ge_a ^ MSBS;
+            // add -(b'9' + 1)u7
+            let ge_9 = x.wrapping_add(0x4646_4646_4646_4646) & MSBS;
+            if (ge_9 & lt_a) != 0 {
+                return Err(InvalidChar)
+            }
+
+            let ge_9_mask = (ge_9 >> 7).wrapping_mul(0xff);
+
+            // add -(b'a')u7 + 10u7, and mask off carries
+            let alphas = (x & ge_9_mask).wrapping_add(0x2929_2929_2929_2929 & ge_9_mask)
+                & 0x0f0f_0f0f_0f0f_0f0f;
+            // add -(b'0')u7 and mask off carries
+            let nums = (x & !ge_9_mask).wrapping_add(0x5050_5050_5050_5050 & !ge_9_mask)
+                & 0x0f0f_0f0f_0f0f_0f0f;
+            let mut y = alphas | nums;
+
+            // gather and reverse
+            // 0x0h0g_0f0e_0d0c_0b0a
+            // 0x00gh_00ef_00cd_00ab
+            // 0xefgh_0000_abcd_0000
+            // 0x0000_0000_abcd_efgh
+            let mut y0 = y & 0x000f_000f_000f_000f;
+            let mut y1 = y & 0x0f00_0f00_0f00_0f00;
+            y = (y0 << 4) | (y1 >> 8);
+            y0 = y & 0x0000_00ff_0000_00ff;
+            y1 = y & 0x00ff_0000_00ff_0000;
+            y = (y0 << 24) | y1;
+            y0 = y & 0x0000_0000_ffff_0000;
+            y1 = y & 0xffff_0000_0000_0000;
+            y = y0 | (y1 >> 48);
+
+            Ok(y as u32)
+        };
+
+        // 64 bytes is the maximum number of hexadecimal digits before nonzero overflow
+        // is unavoidable
+        let max_copy = if src.len() > 64 { 64 } else { src.len() };
+        const_for!(i in {64..src.len()} {
+            if src[src.len() - 1 - i] != b'0' {
+                return Err(Overflow)
+            }
+        });
+        // if `src` has zero bytes they will overwrite and cause overflow errors in
+        // `swar`
+        let mut buf = [0x3030_3030_3030_3030u64; 8];
+        // note: use `try_cast_mut`, it seems variations like `cast_mut` do unnecessary
+        // copying
+        let bytes_buf: &mut [u8; 64] = bytemuck::try_cast_mut(&mut buf).unwrap();
+        let len = bytes_buf.len();
+        bytes_buf[(len - max_copy)..].copy_from_slice(&src[(src.len() - max_copy)..]);
+        let mut res = [0u64; 4];
+        const_for!(i in {0..buf.len()} {
+            if buf[i] != 0x3030_3030_3030_3030 {
+                let x = match swar(buf[i]) {
+                    Ok(x) => x,
+                    Err(e) => return Err(e),
+                };
+                res[res.len() - (i / 2) - 1] |= (x as u64) << if (i % 2) == 0 {32} else {0};
+            }
+        });
+        Ok(Self::from_u64_array(res))
+    }
 
     pub const fn from_bytes_radix(src: &[u8], radix: u8) -> Result<Self, FromStrRadixErr> {
         if let Err(e) = verify_for_bytes_assign(src, radix) {
@@ -211,7 +300,7 @@ impl U256 {
         if index == 64 {
             return "0x0".to_owned()
         }
-        let byte_buf: [u8; 64] = bytemuck::try_cast(buf).unwrap();
+        let byte_buf: &mut [u8; 64] = bytemuck::try_cast_mut(&mut buf).unwrap();
         // the +2 makes room for the prefix
         let char_len = (64 - index) + 2;
         let mut s: Vec<u8> = alloc::vec![0; char_len];
@@ -304,7 +393,7 @@ impl fmt::LowerHex for U256 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut buf = [0u64; 8];
         let index = self.to_hex_string_buffer(&mut buf);
-        let byte_buf: [u8; 64] = bytemuck::try_cast(buf).unwrap();
+        let byte_buf: &mut [u8; 64] = bytemuck::try_cast_mut(&mut buf).unwrap();
         if index == 64 {
             return f.pad_integral(true, "0x", "0")
         }

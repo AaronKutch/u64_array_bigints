@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.3.1] - 2022-03-02
+### Fixes
+- Fixed that string deserialization would not catch some overflow cases
+- Fixed incorrect documentation
+
 ## [0.3.0] - 2022-03-01
 ### Fixes
 - Fixed deserialization bug where chars that shouldn't be accepted were sometimes accepted when the

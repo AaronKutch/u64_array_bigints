@@ -40,6 +40,35 @@ fn serialization_test() {
         max.to_dec_string(),
         "115792089237316195423570985008687907853269984665640564039457584007913129639935"
     );
+
+    assert_eq!(
+        U256::from_dec_or_hex_str(
+            "0115792089237316195423570985008687907853269984665640564039457584007913129639935"
+        )
+        .unwrap(),
+        U256::max_value()
+    );
+    assert_eq!(
+        U256::from_dec_or_hex_str(
+            "0x0ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+        )
+        .unwrap(),
+        U256::max_value()
+    );
+
+    assert!(U256::from_dec_or_hex_str(
+        "115792089237316195423570985008687907853269984665640564039457584007913129639936"
+    )
+    .is_err());
+    assert!(U256::from_bytes_radix(
+        "10000000000000000000000000000000000000000000000000000000000000000".as_bytes(),
+        16
+    )
+    .is_err());
+    assert!(U256::from_dec_or_hex_str(
+        "0x10000000000000000000000000000000000000000000000000000000000000000"
+    )
+    .is_err());
 }
 
 #[test]
@@ -110,6 +139,26 @@ fn restricted() {
     assert!(U256::from_dec_or_hex_str_restricted("0x1_2").is_err());
     assert!(U256::from_dec_or_hex_str_restricted(
         "0115792089237316195423570985008687907853269984665640564039457584007913129639935"
+    )
+    .is_err());
+
+    assert_eq!(
+        U256::from_dec_or_hex_str_restricted(
+            "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+        )
+        .unwrap(),
+        U256::max_value()
+    );
+    assert!(U256::from_dec_or_hex_str_restricted(
+        "0x10000000000000000000000000000000000000000000000000000000000000000"
+    )
+    .is_err());
+    assert!(U256::from_dec_or_hex_str_restricted(
+        "0115792089237316195423570985008687907853269984665640564039457584007913129639935"
+    )
+    .is_err());
+    assert!(U256::from_dec_or_hex_str_restricted(
+        "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000"
     )
     .is_err());
 }

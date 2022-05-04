@@ -5,7 +5,7 @@ edition = "2021"
 publish = false
 
 [dependencies]
-awint = { version = "0.3", default-features = false, features = ["alloc"] }
+awint = { version = "0.4", default-features = false, features = ["alloc"] }
 rand_xoshiro = { version = "0.6", default-features = false }
 u64_array_bigints = { path = "../u64_array_bigints", default-features = false, features = ["rand_support", "serde_support"] }
 

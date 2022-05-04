@@ -12,13 +12,13 @@ keywords = ["bigint", "no_std"]
 categories = ["data-structures", "no-std"]
 
 [dependencies]
-bytemuck = { version = "1.7", default-features = false }
+bytemuck = { version = "1.9", default-features = false }
 rand_core = { version = "0.6", default-features = false, optional = true }
 serde = { version = "1.0", optional = true }
 uint = { version = "0.9", default-features = false, optional = true }
 
 [dev-dependencies]
-awint = { version = "0.3", default-features = false, features = ["alloc"] }
+awint = { version = "0.4", default-features = false, features = ["alloc"] }
 rand_xoshiro = { version = "0.6", default-features = false }
 # for doc examples
 u64_array_bigints = { path = "../u64_array_bigints", default-features = false }

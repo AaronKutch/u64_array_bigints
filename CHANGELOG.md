@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.3.2] - TODO
+### Crate
+- Version bump of bytemuck to 1.9.1
+
 ## [0.3.1] - 2022-03-02
 ### Fixes
 - Fixed that string deserialization would not catch some overflow cases

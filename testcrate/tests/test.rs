@@ -163,7 +163,8 @@ fn restricted() {
     .is_err());
 }
 
-// checks that every possible byte in every position produces the expected result
+// checks that every possible byte in every position produces the expected
+// result
 #[cfg(not(miri))]
 #[test]
 fn all_byte_combos() {

@@ -1,8 +1,11 @@
 # Changelog
 
 ## [0.3.2] - TODO
+### Fixes
+- Fixed that `msb` and functions depending on it were broken on non-64-bit architectures
+
 ### Crate
-- Version bump of bytemuck to 1.9.1
+- Version bump of bytemuck to 1.9
 
 ## [0.3.1] - 2022-03-02
 ### Fixes

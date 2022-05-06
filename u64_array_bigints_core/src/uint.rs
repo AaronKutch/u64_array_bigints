@@ -7,11 +7,12 @@ use crate::{
     },
 };
 
-/// Note: `LEN` must satisfy `LEN > 0` and `LEN.checked_mul(64usize).is_some()`.
-/// The construction functions and some downstream functions check for these
-/// invariants. Users should preferrably use `from_u64_array` instead of direct
+/// A static length bigint based on an array of `u64`s.
+///
+/// Note: `LEN` must satisfy `LEN > 0` and `(LEN * 64usize) <= (isize::MAX as
+/// usize)`. Users should preferrably use `from_u64_array` instead of direct
 /// tuple struct construction of the `Uint`, because the invariants are checked
-/// automatically by `from_u64_array`.
+/// automatically by `from_u64_array` and prevents later panics.
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct Uint<const LEN: usize>(pub [u64; LEN]);
 
@@ -273,7 +274,7 @@ impl<const LEN: usize> Uint<LEN> {
     #[inline]
     pub const fn msb(&self) -> bool {
         assert_uint_invariants::<LEN>();
-        (self.0[LEN - 1] as isize) < 0
+        (self.0[LEN - 1] as i64) < 0
     }
 
     /// Returns the number of leading zero bits

@@ -163,6 +163,7 @@ fn restricted() {
     .is_err());
 }
 
+// checks that every possible byte in every position produces the expected result
 #[cfg(not(miri))]
 #[test]
 fn all_byte_combos() {
@@ -172,25 +173,15 @@ fn all_byte_combos() {
             s[s.len() - 1 - i] = b;
             match b {
                 b'0'..=b'9' => {
-                    if U256::from_hex_str_fast(&s).unwrap()
-                        != U256::from_u8(b - b'0').wrapping_shl(i * 4)
-                    {
-                        dbg!(
-                            &s,
-                            b,
-                            U256::from_u8(b - b'0').wrapping_shl(i * 4).to_hex_string(),
-                            U256::from_hex_str_fast(&s).unwrap().to_hex_string()
-                        );
-                    }
-                    assert!(
-                        U256::from_hex_str_fast(&s).unwrap()
-                            == U256::from_u8(b - b'0').wrapping_shl(i * 4)
+                    assert_eq!(
+                        U256::from_hex_str_fast(&s).unwrap(),
+                        U256::from_u8(b - b'0').wrapping_shl(i * 4)
                     );
                 }
                 b'a'..=b'f' => {
-                    assert!(
-                        U256::from_hex_str_fast(&s).unwrap()
-                            == U256::from_u8(b - b'a' + 10).wrapping_shl(i * 4)
+                    assert_eq!(
+                        U256::from_hex_str_fast(&s).unwrap(),
+                        U256::from_u8(b - b'a' + 10).wrapping_shl(i * 4)
                     );
                 }
                 _ => {

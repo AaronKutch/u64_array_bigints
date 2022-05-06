@@ -96,17 +96,54 @@ fn identities_inner<const LEN: usize>(
     y2.rotl_assign(s0).unwrap();
     assert_eq_awint(y2, x0.checked_rotl(s0).unwrap());
 
-    y2.copy_assign(y0).unwrap();
-    let cout0 = y2.short_cin_mul(digit0 as usize, digit1 as usize);
-    let (res, cout1) = x0.overflowing_short_cin_mul(digit0, digit1);
-    assert_eq!(cout0 as u64, cout1);
-    assert_eq_awint(y2, res);
+    #[cfg(target_pointer_width = "64")]
+    {
+        y2.copy_assign(y0).unwrap();
+        let cout0 = y2.short_cin_mul(digit0 as usize, digit1 as usize);
+        let (res, cout1) = x0.overflowing_short_cin_mul(digit0, digit1);
+        assert_eq!(cout0 as u64, cout1);
+        assert_eq_awint(y2, res);
 
-    y2.copy_assign(y0).unwrap();
-    let o0 = y2.short_mul_add_assign(y1, digit0 as usize).unwrap();
-    let (res, o1) = x0.overflowing_short_mul_add(x1, digit0);
-    assert_eq!(o0, o1);
-    assert_eq_awint(y2, res);
+        y2.copy_assign(y0).unwrap();
+        let o0 = y2.short_mul_add_assign(y1, digit0 as usize).unwrap();
+        let (res, o1) = x0.overflowing_short_mul_add(x1, digit0);
+        assert_eq!(o0, o1);
+        assert_eq_awint(y2, res);
+
+        if digit0 != 0 {
+            y2.copy_assign(y0).unwrap();
+            let rem0 = y2.short_udivide_inplace_assign(digit0 as usize).unwrap();
+            let (res, rem1) = x0.checked_short_divide(digit0).unwrap();
+            assert_eq!(rem0 as u64, rem1);
+            assert_eq_awint(y2, res);
+        }
+    }
+    // `awint`'s `short_` stuff was made for usize::BITS adjusting algorithms or
+    // for stuff that fits in a `u16`
+    #[cfg(not(target_pointer_width = "64"))]
+    {
+        y2.copy_assign(y0).unwrap();
+        let cout0 = y2.short_cin_mul(digit0 as u8 as usize, digit1 as u8 as usize);
+        let (res, cout1) = x0.overflowing_short_cin_mul(digit0 as u8 as u64, digit1 as u8 as u64);
+        assert_eq!(cout0 as u8, cout1 as u8);
+        assert_eq_awint(y2, res);
+
+        y2.copy_assign(y0).unwrap();
+        let o0 = y2.short_mul_add_assign(y1, digit0 as u8 as usize).unwrap();
+        let (res, o1) = x0.overflowing_short_mul_add(x1, digit0 as u8 as u64);
+        assert_eq!(o0, o1);
+        assert_eq_awint(y2, res);
+
+        if (digit0 as u8) != 0 {
+            y2.copy_assign(y0).unwrap();
+            let rem0 = y2
+                .short_udivide_inplace_assign(digit0 as u8 as usize)
+                .unwrap();
+            let (res, rem1) = x0.checked_short_divide(digit0 as u8 as u64).unwrap();
+            assert_eq!(rem0 as u8, rem1 as u8);
+            assert_eq_awint(y2, res);
+        }
+    }
 
     y2.copy_assign(y0).unwrap();
     y2.mul_assign(y1, y3).unwrap();
@@ -120,14 +157,6 @@ fn identities_inner<const LEN: usize>(
         assert!(!o);
     } else {
         assert!(o);
-    }
-
-    if digit0 != 0 {
-        y2.copy_assign(y0).unwrap();
-        let rem0 = y2.short_udivide_inplace_assign(digit0 as usize).unwrap();
-        let (res, rem1) = x0.checked_short_divide(digit0).unwrap();
-        assert_eq!(rem0 as u64, rem1);
-        assert_eq_awint(y2, res);
     }
 
     if x1.is_zero() {

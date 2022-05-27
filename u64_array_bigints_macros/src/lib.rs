@@ -1,3 +1,5 @@
+//! Note: this is all reexported from the main `u64_array_bigints` crate
+
 extern crate alloc;
 use alloc::{format, string::ToString};
 

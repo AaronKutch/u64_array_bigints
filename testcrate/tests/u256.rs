@@ -147,3 +147,42 @@ fn fuzz_u256() {
         identities_inner(&mut rng, x0, x1, &y0, &mut y2);
     }
 }
+
+#[test]
+fn deserialize_value() {
+    #[derive(Debug, serde::Deserialize, PartialEq, Eq)]
+    struct Ex {
+        x: U256,
+    }
+    // check that both serde_json strings and numbers can be deserialized
+    assert_eq!(serde_json::from_str::<Ex>(r#"{"x": "123"}"#).unwrap(), Ex {
+        x: u256!(123)
+    });
+    assert_eq!(serde_json::from_str::<Ex>(r#"{"x": 123}"#).unwrap(), Ex {
+        x: u256!(123)
+    });
+    let max = "11579208923731619542357098500868790785326998466564056403945758400791312963993";
+    assert_eq!(
+        serde_json::from_str::<Ex>(&format!("{{\"x\": \"{}5\"}}", max)).unwrap(),
+        Ex {
+            x: U256::max_value()
+        }
+    );
+    assert!(serde_json::from_str::<Ex>(&format!("{{\"x\": \"{}6\"}}", max)).is_err());
+    assert_eq!(
+        serde_json::from_str::<Ex>(r#"{"x": "18446744073709551615"}"#).unwrap(),
+        Ex {
+            x: U256::from_u64(u64::MAX)
+        }
+    );
+    assert_eq!(
+        serde_json::from_str::<Ex>(r#"{"x": 18446744073709551615}"#).unwrap(),
+        Ex {
+            x: U256::from_u64(u64::MAX)
+        }
+    );
+    // serde_json can't do this
+    assert!(serde_json::from_str::<Ex>(r#"{"x": 18446744073709551616}"#).is_err());
+    // DoS prevention
+    assert!(serde_json::from_str::<Ex>(r#"{"x": 000000000000000000123}"#).is_err());
+}

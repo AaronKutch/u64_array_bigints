@@ -6,9 +6,11 @@ publish = false
 
 [dependencies]
 awint = { version = "0.4", default-features = false, features = ["alloc"] }
-rand_xoshiro = { version = "0.6", default-features = false }
-u64_array_bigints = { path = "../u64_array_bigints", default-features = false, features = ["rand_support", "serde_support"] }
 itoa = "1.0"
+rand_xoshiro = { version = "0.6", default-features = false }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+u64_array_bigints = { path = "../u64_array_bigints", default-features = false, features = ["rand_support", "serde_support"] }
 
 [features]
 use_parity_uint = ["u64_array_bigints/use_parity_uint"]

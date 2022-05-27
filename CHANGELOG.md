@@ -4,6 +4,10 @@
 ### Fixes
 - Fixed that `msb` and functions depending on it were broken on non-64-bit architectures
 
+### Changes
+- The `Deserialize` impl of `U256` now also tries to parse the input as a `u64`, allowing more cases
+  of `serde_json` deserialization to work
+
 ### Crate
 - Version bump of bytemuck to 1.9
 

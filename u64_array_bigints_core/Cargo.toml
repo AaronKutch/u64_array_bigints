@@ -14,7 +14,7 @@ categories = ["data-structures", "no-std"]
 [dependencies]
 bytemuck = { version = "1.9", default-features = false }
 rand_core = { version = "0.6", default-features = false, optional = true }
-serde = { version = "1.0", optional = true }
+serde = { version = "1.0", features = ["derive"], optional = true }
 uint = { version = "0.9", default-features = false, optional = true }
 
 [dev-dependencies]

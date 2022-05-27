@@ -453,12 +453,26 @@ impl Serialize for U256 {
 
 #[cfg(feature = "serde_support")]
 impl<'de> Deserialize<'de> for U256 {
-    /// Uses `from_dec_or_hex_str_restricted`.
+    /// Tries `Deserializer::deserialize_str` and feeds it to
+    /// `from_dec_or_hex_str_restricted`, else uses
+    /// `Deserializer::deserialize_u64`.
     fn deserialize<D>(deserializer: D) -> Result<U256, D::Error>
     where
         D: Deserializer<'de>,
     {
-        U256::from_dec_or_hex_str_restricted(&String::deserialize(deserializer)?)
-            .map_err(serde::de::Error::custom)
+        // Hack from https://stackoverflow.com/questions/56582722/serde-json-deserialize-any-number.
+        // `serde_json` can't handle deserialize_u128.
+        #[derive(serde::Deserialize)]
+        #[serde(untagged)]
+        enum StrOrU64<'a> {
+            Str(&'a str),
+            U64(u64),
+        }
+        match StrOrU64::deserialize(deserializer)? {
+            StrOrU64::Str(s) => {
+                U256::from_dec_or_hex_str_restricted(s).map_err(serde::de::Error::custom)
+            }
+            StrOrU64::U64(x) => Ok(U256::from_u64(x)),
+        }
     }
 }

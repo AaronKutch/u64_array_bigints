@@ -1,6 +1,6 @@
 [package]
 name = "u64_array_bigints"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2021"
 authors = ["Aaron Kutch <aaronkutch@att.net>"]
 license = "MIT OR Apache-2.0"
@@ -12,8 +12,8 @@ keywords = ["bigint", "no_std"]
 categories = ["data-structures", "no-std"]
 
 [dependencies]
-u64_array_bigints_core = { version = "0.3.1", path = "../u64_array_bigints_core", default-features = false }
-u64_array_bigints_macros = { version = "0.3.1", path = "../u64_array_bigints_macros", default-features = false }
+u64_array_bigints_core = { version = "0.3.2", path = "../u64_array_bigints_core", default-features = false }
+u64_array_bigints_macros = { version = "0.3.2", path = "../u64_array_bigints_macros", default-features = false }
 
 [features]
 default = ["rand_support", "serde_support"]

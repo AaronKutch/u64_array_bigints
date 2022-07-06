@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.3.2] - TODO
+## [0.3.2] - 2022-07-06
 ### Fixes
 - Fixed that `msb` and functions depending on it were broken on non-64-bit architectures
 

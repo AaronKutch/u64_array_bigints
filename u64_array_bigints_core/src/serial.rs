@@ -434,6 +434,13 @@ impl fmt::LowerHex for U256 {
 }
 
 #[cfg(not(feature = "use_parity_uint"))]
+impl fmt::Debug for U256 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.pad_integral(true, "", &self.to_dec_string())
+    }
+}
+
+#[cfg(not(feature = "use_parity_uint"))]
 impl fmt::Display for U256 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.pad_integral(true, "", &self.to_dec_string())

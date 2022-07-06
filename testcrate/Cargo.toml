@@ -5,8 +5,11 @@ edition = "2021"
 publish = false
 
 [dependencies]
-awint = { version = "0.3", default-features = false, features = ["alloc"] }
+awint = { version = "0.4", default-features = false, features = ["alloc"] }
+itoa = "1.0"
 rand_xoshiro = { version = "0.6", default-features = false }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 u64_array_bigints = { path = "../u64_array_bigints", default-features = false, features = ["rand_support", "serde_support"] }
 
 [features]

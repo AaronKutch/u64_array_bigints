@@ -10,7 +10,7 @@ pub const fn assert_uint_invariants<const LEN: usize>() {
     // this guarantees that functions related to the bitwidth cannot have problems
     let (tmp, o) = LEN.overflowing_mul(BITS);
     assert!(!o);
-    assert!(tmp < (isize::MAX as usize));
+    assert!(tmp <= (isize::MAX as usize));
 }
 
 /// Returns the number of extra bits given `bw`

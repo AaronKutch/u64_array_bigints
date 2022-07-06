@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.2] - 2022-07-06
+### Fixes
+- Fixed that `msb` and functions depending on it were broken on non-64-bit architectures
+
+### Changes
+- The `Deserialize` impl of `U256` now also tries to parse the input as a `u64`, allowing more cases
+  of `serde_json` deserialization to work
+- Changed the `Debug` and `Display` impls for `U256` to display a decimal string
+
+### Crate
+- Version bump of bytemuck to 1.10
+
 ## [0.3.1] - 2022-03-02
 ### Fixes
 - Fixed that string deserialization would not catch some overflow cases

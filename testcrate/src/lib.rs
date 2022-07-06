@@ -12,7 +12,7 @@ pub const N: u32 = if cfg!(miri) {
     1_000_000
 };
 
-/// Panics if `usize::BITS != 64` or `awint.bw() != Uint::<LEN>::bw()`
+/// Panics if `awint.bw() != Uint::<LEN>::bw()`
 pub fn uint_to_awint<const LEN: usize>(awint: &mut Bits, uint: Uint<LEN>) {
     if awint.bw() != Uint::<LEN>::bw() {
         panic!("bitwidth mismatch");
@@ -25,33 +25,13 @@ pub fn uint_to_awint<const LEN: usize>(awint: &mut Bits, uint: Uint<LEN>) {
     }
 }
 
-/// Panics if `usize::BITS != 64` or `awint.bw() != Uint::<LEN>::bw()`
+/// Panics if `awint.bw() != 256`
 pub fn u256_to_awint(awint: &mut Bits, uint: U256) {
     if awint.bw() != 256 {
         panic!("bitwidth mismatch");
     }
     awint.as_mut_slice().copy_from_slice(&uint.to_usize_array());
 }
-
-/*
-/// Panics if `usize::BITS != 64` or `awint.bw() != Uint::<LEN>::bw()`
-pub fn awint_to_uint<const LEN: usize>(awint: &Bits) -> Uint<LEN> {
-    if usize::BITS != 64 {
-        // this could be fixed if the need arises
-        panic!("testing only supported on 64 bit architectures");
-    }
-    if awint.bw() != Uint::<LEN>::bw() {
-        panic!("bitwidth mismatch");
-    }
-    let mut x: [usize; LEN] = [0; LEN];
-    x.copy_from_slice(&awint.as_slice());
-    let mut res = Uint::zero();
-    for i in 0..LEN {
-        res.0[i] = x[i] as u64;
-    }
-    res
-}
-*/
 
 /// Panics if the bitwidths or bitvalues of `awint` do not equal that of `uint`
 #[track_caller]
@@ -72,10 +52,6 @@ pub fn assert_eq_awint<const LEN: usize>(awint: &Bits, uint: Uint<LEN>) {
 /// Panics if the bitwidths or bitvalues of `awint` do not equal that of `uint`
 #[track_caller]
 pub fn assert_eq_awint_u256(awint: &Bits, uint: U256) {
-    if usize::BITS != 64 {
-        // this could be fixed if the need arises
-        panic!("testing only supported on 64 bit architectures");
-    }
     if awint.bw() != 256 {
         panic!("bitwidth mismatch");
     }
@@ -83,25 +59,6 @@ pub fn assert_eq_awint_u256(awint: &Bits, uint: U256) {
         panic!("awint {:?} is not equal to uint {:?}", awint, uint);
     }
 }
-
-/*
-// for debugging
-pub fn check_eq_awint<const LEN: usize>(awint: &Bits, uint: Uint<LEN>) -> bool {
-    if usize::BITS != 64 {
-        // this could be fixed if the need arises
-        panic!("testing only supported on 64 bit architectures");
-    }
-    if awint.bw() != Uint::<LEN>::bw() {
-        panic!("bitwidth mismatch");
-    }
-    for i in 0..LEN {
-        if (awint.as_slice()[i] as u64) != uint.0[i] {
-            return false
-        }
-    }
-    true
-}
-*/
 
 pub fn fuzz_step<const LEN: usize>(rng: &mut Xoshiro128StarStar, x: &mut Uint<LEN>) {
     let r0 = (rng.next_u32() as usize) % Uint::<LEN>::bw();

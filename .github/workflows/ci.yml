@@ -28,6 +28,9 @@ jobs:
   miri:
     name: Miri
     runs-on: ubuntu-latest
+    env:
+      RUSTFLAGS: -D warnings
+      MIRIFLAGS: -Zmiri-strict-provenance
     steps:
       - uses: actions/checkout@v2
       - name: Install most recent Miri

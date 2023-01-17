@@ -5,7 +5,7 @@ edition = "2021"
 publish = false
 
 [dependencies]
-awint = { version = "0.4", default-features = false, features = ["alloc"] }
+awint = { version = "0.8", default-features = false, features = ["alloc"] }
 itoa = "1.0"
 rand_xoshiro = { version = "0.6", default-features = false }
 serde = { version = "1.0", features = ["derive"] }

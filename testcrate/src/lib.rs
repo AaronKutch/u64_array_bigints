@@ -44,7 +44,7 @@ pub fn assert_eq_awint<const LEN: usize>(awint: &Bits, uint: Uint<LEN>) {
     for (i, x) in uint.to_u64_array().iter().enumerate() {
         tmp.field(0, awint, i * 64, 64).unwrap();
         if *x != tmp.to_u64() {
-            panic!("awint {:?} is not equal to uint {:?}", awint, uint);
+            panic!("awint {awint:?} is not equal to uint {uint:?}");
         }
     }
 }
@@ -56,7 +56,7 @@ pub fn assert_eq_awint_u256(awint: &Bits, uint: U256) {
         panic!("bitwidth mismatch");
     }
     if awint.as_slice() != uint.to_usize_array() {
-        panic!("awint {:?} is not equal to uint {:?}", awint, uint);
+        panic!("awint {awint:?} is not equal to uint {uint:?}");
     }
 }
 

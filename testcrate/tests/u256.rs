@@ -160,12 +160,12 @@ fn deserialize_value() {
     });
     let max = "11579208923731619542357098500868790785326998466564056403945758400791312963993";
     assert_eq!(
-        serde_json::from_str::<Ex>(&format!("{{\"x\": \"{}5\"}}", max)).unwrap(),
+        serde_json::from_str::<Ex>(&format!("{{\"x\": \"{max}5\"}}")).unwrap(),
         Ex {
             x: U256::max_value()
         }
     );
-    assert!(serde_json::from_str::<Ex>(&format!("{{\"x\": \"{}6\"}}", max)).is_err());
+    assert!(serde_json::from_str::<Ex>(&format!("{{\"x\": \"{max}6\"}}")).is_err());
     assert_eq!(
         serde_json::from_str::<Ex>(r#"{"x": "18446744073709551615"}"#).unwrap(),
         Ex {

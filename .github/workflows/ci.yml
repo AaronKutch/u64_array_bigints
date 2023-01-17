@@ -71,7 +71,7 @@ jobs:
           rustup component add clippy
       - name: Run `cargo clippy`
         run: |
-          cargo clippy --all --all-targets --no-default-features -- -D clippy::all
+          cargo clippy --all --all-targets --no-default-features --features=rand_support,serde_support -- -D clippy::all
           cargo clippy --all --all-targets --all-features -- -D clippy::all
 
   # makes sure the tests work on 32 bit and 64 bit big endian targets

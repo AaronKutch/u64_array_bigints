@@ -1,5 +1,3 @@
-use core::ops::{BitAndAssign, BitOrAssign, BitXorAssign};
-
 // `serial.rs` is shared with this implementation, functions that could not be
 // shared are reimplemented here
 use crate::{
@@ -360,23 +358,5 @@ impl U256 {
             res.0[i] = rng.next_u64();
         }
         res
-    }
-}
-
-impl BitOrAssign for U256 {
-    fn bitor_assign(&mut self, rhs: Self) {
-        *self = *self | rhs;
-    }
-}
-
-impl BitAndAssign for U256 {
-    fn bitand_assign(&mut self, rhs: Self) {
-        *self = *self & rhs;
-    }
-}
-
-impl BitXorAssign for U256 {
-    fn bitxor_assign(&mut self, rhs: Self) {
-        *self = *self ^ rhs;
     }
 }

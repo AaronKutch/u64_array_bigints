@@ -1,6 +1,6 @@
 [package]
 name = "u64_array_bigints_core"
-version = "0.3.2"
+version = "0.3.3"
 edition = "2021"
 authors = ["Aaron Kutch <aaronkutch@att.net>"]
 license = "MIT OR Apache-2.0"
@@ -12,13 +12,13 @@ keywords = ["bigint", "no_std"]
 categories = ["data-structures", "no-std"]
 
 [dependencies]
-bytemuck = { version = "1.10", default-features = false }
+bytemuck = { version = "1.12", default-features = false }
 rand_core = { version = "0.6", default-features = false, optional = true }
 serde = { version = "1.0", features = ["derive"], optional = true }
 uint = { version = "0.9", default-features = false, optional = true }
 
 [dev-dependencies]
-awint = { version = "0.4", default-features = false, features = ["alloc"] }
+awint = { version = "0.8", default-features = false, features = ["alloc"] }
 rand_xoshiro = { version = "0.6", default-features = false }
 # for doc examples
 u64_array_bigints = { path = "../u64_array_bigints", default-features = false }

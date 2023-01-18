@@ -113,19 +113,19 @@ fn to_hex_string() {
 fn format() {
     let x = u256!(0x0123456789abcedffdecba98765432100f1e2d3c4b5a697813375ca1ab1e1337);
     assert_eq!(
-        format!("{:?}", x),
+        format!("{x:?}"),
         "514631507721406819000807973055347587171986281168858714843337847970547503927"
     );
     assert_eq!(
-        format!("{}", x),
+        format!("{x}"),
         "514631507721406819000807973055347587171986281168858714843337847970547503927"
     );
     assert_eq!(
-        format!("{:x}", x),
+        format!("{x:x}"),
         "123456789abcedffdecba98765432100f1e2d3c4b5a697813375ca1ab1e1337"
     );
     assert_eq!(
-        format!("{:#x}", x),
+        format!("{x:#x}"),
         "0x123456789abcedffdecba98765432100f1e2d3c4b5a697813375ca1ab1e1337"
     );
 }

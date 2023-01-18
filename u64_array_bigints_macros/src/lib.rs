@@ -25,10 +25,7 @@ pub fn u256(input: TokenStream) -> TokenStream {
             .unwrap()
         }
         Err(e) => {
-            panic!(
-                "Invalid U256 string representation: {:?} for \"{}\".",
-                e, input,
-            );
+            panic!("Invalid U256 string representation: {e:?} for \"{input}\".");
         }
     }
 }

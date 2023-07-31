@@ -3,7 +3,7 @@
 //! without a lot of code duplication or cyclic references. Most users should
 //! just use the main `u64_array_bigints` crate in their `Cargo.toml`.
 
-#![no_std]
+#![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::manual_map)]
 
 extern crate alloc;

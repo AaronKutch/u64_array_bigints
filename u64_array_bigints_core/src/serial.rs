@@ -1,13 +1,15 @@
 #![allow(clippy::manual_range_contains)]
 
 use alloc::{borrow::ToOwned, string::String, vec, vec::Vec};
-use core::fmt::{self, Display};
+#[allow(unused_imports)]
+use core::fmt;
 
 #[cfg(feature = "serde_support")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::{const_for, utils::BITS, U256};
 
+#[cfg(not(feature = "std"))]
 #[derive(Debug, Clone)]
 pub enum FromStrRadixErr {
     InvalidRadix,
@@ -15,10 +17,22 @@ pub enum FromStrRadixErr {
     Overflow,
 }
 
-impl Display for FromStrRadixErr {
+#[cfg(not(feature = "std"))]
+impl core::fmt::Display for FromStrRadixErr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(self, f)
     }
+}
+
+#[cfg(feature = "std")]
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum FromStrRadixErr {
+    #[error("InvalidRadix")]
+    InvalidRadix,
+    #[error("InvalidChar")]
+    InvalidChar,
+    #[error("Overflow")]
+    Overflow,
 }
 
 use FromStrRadixErr::*;

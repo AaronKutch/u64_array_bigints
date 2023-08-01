@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.3.4] - 2023-07-31
+## [0.3.4] - 2023-08-01
 ### Additions
 - Impl `Error` for `FromStrRadixErr` and added an "std" flag for it
 

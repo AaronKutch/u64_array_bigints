@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.3.4] - 2023-08-01
+### Additions
+- Impl `Error` for `FromStrRadixErr` and added an "std" flag for it
+
+## [0.3.3] - 2023-01-17
+### Fixes
+- Fixed that a `uint` minor version broke compatibility
+
+### Crate
+- Update dependencies
+
 ## [0.3.2] - 2022-07-06
 ### Fixes
 - Fixed that `msb` and functions depending on it were broken on non-64-bit architectures
